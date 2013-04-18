@@ -49,6 +49,11 @@ namespace BohemianArtifact
             }
         }
 
+        public Color Color
+        {
+            get { return color; }
+        }
+
         private int subdivisions = 64;
         private VertexPositionColorTexture[] screenPoints;
         private VertexPositionColorTexture[] selectPoints;

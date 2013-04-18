@@ -121,6 +121,7 @@
   <ItemGroup>
     <Compile Include="App.cs" />
     <Compile Include="ArtifactLibrary.cs" />
+    <Compile Include="ColorView.cs" />
     <Compile Include="SelectableCurve.cs" />
     <Compile Include="TimelineView.cs" />
     <Compile Include="KeywordView.cs" />

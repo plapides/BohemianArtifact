@@ -9,6 +9,7 @@ namespace BohemianArtifact
         protected VertexPositionColorTexture[] screenPoints = new VertexPositionColorTexture[4];
         protected VertexPositionColorTexture[] selectPoints = new VertexPositionColorTexture[4];
         protected int[] indices = { 0, 1, 2, 0, 2, 3 };
+        protected Vector3 center;
 
         public VertexPositionColorTexture[] Points
         {
@@ -32,6 +33,17 @@ namespace BohemianArtifact
             }
         }
 
+        public Vector3 Center
+        {
+            get { return center; }
+        }
+
+        // returns x-coordinate of top of quad
+        public float Top
+        {
+            get { return screenPoints[0].Position.X; }
+        }
+
         protected SelectableQuad(Color color)
         {
             for (int i = 0; i < 4; i++)
@@ -47,6 +59,7 @@ namespace BohemianArtifact
             screenPoints[1] = new VertexPositionColorTexture(new Vector3(position.X + size.X, position.Y, 0), color, Vector2.UnitX);
             screenPoints[2] = new VertexPositionColorTexture(new Vector3(position.X + size.X, position.Y + size.Y, 0), color, Vector2.UnitX);
             screenPoints[3] = new VertexPositionColorTexture(new Vector3(position.X, position.Y + size.Y, 0), color, Vector2.UnitX);
+            center = new Vector3(position.X + size.X / 2, position.Y + size.Y / 2, 0);
             Synchronize();
         }
 
@@ -57,6 +70,7 @@ namespace BohemianArtifact
             screenPoints[1] = new VertexPositionColorTexture(p2, color, Vector2.UnitX);
             screenPoints[2] = new VertexPositionColorTexture(p3, color, Vector2.One);
             screenPoints[3] = new VertexPositionColorTexture(p4, color, Vector2.UnitY);
+            center = 0.5f * (p3 - p1);
             Synchronize();
         }
 

@@ -53,6 +53,7 @@ namespace BohemianArtifact
         private MaterialsView materialView;
         private KeywordView keywordView;
         private TimelineView timelineView;
+        private ColorView colorView;
         
         // so that we can render fonts
         private SpriteBatch spriteBatch;
@@ -170,12 +171,16 @@ namespace BohemianArtifact
             touchTarget.TouchMove += new EventHandler<TouchEventArgs>(touchTarget_TouchMove);
             touchTarget.TouchUp += new EventHandler<TouchEventArgs>(touchTarget_TouchUp);
 
+            //form.KeyDown += new KeyEventHandler(form_KeyDown);
+
             //form.MouseDown += new MouseEventHandler(form_MouseDown);
             //form.MouseMove += new MouseEventHandler(form_MouseMove);
             //form.MouseUp += new MouseEventHandler(form_MouseUp);
             
             touchPoints = new Dictionary<int, Touch>();
         }
+
+
 
         protected override void Initialize()
         {
@@ -230,6 +235,12 @@ namespace BohemianArtifact
                     touchPoints.Add(MOUSE_ID, new Touch(MOUSE_ID, e));
                 }
             }
+        }
+
+        void form_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape)
+                form.Close();
         }
 
         void touchTarget_TouchMove(object sender, TouchEventArgs e)
@@ -373,8 +384,13 @@ namespace BohemianArtifact
             float materialSize = 0.3f;
             float materialLeft = viewPadding;
             float materialTop = viewPadding;
+
+            float colorSize = materialSize;
+            float colorLeft = materialLeft + materialSize + viewPadding;
+            float colorTop = viewPadding;
+
             float keywordSize = materialSize;
-            float keywordLeft = materialLeft + materialSize + viewPadding;
+            float keywordLeft = colorLeft + materialSize + viewPadding;
             float keywordTop = viewPadding;
             float infoSize = materialSize;
             float infoLeft = viewPadding;
@@ -382,8 +398,11 @@ namespace BohemianArtifact
             float timelineSize = 0.6f; // timeline is only 0.3 * size in height (e.g. 0.15)
             float timelineLeft = infoLeft + infoSize + viewPadding;
             float timelineTop = keywordTop + keywordSize + viewPadding;
+
+
             //float timelineTop = 1 - timelineSize * 0.3f - viewPadding;
             materialView = new MaterialsView(this, new Vector3(materialLeft * presentation.BackBufferWidth, materialTop * presentation.BackBufferWidth, 0), new Vector3(materialSize * presentation.BackBufferWidth, materialSize * presentation.BackBufferWidth, 1));
+            colorView = new ColorView(this, new Vector3(colorLeft * presentation.BackBufferWidth, colorTop * presentation.BackBufferWidth, 0), new Vector3(colorSize * presentation.BackBufferWidth, colorSize * presentation.BackBufferWidth, 1));
             keywordView = new KeywordView(this, new Vector3(keywordLeft * presentation.BackBufferWidth, keywordTop * presentation.BackBufferWidth, 0), new Vector3(keywordSize * presentation.BackBufferWidth, keywordSize * presentation.BackBufferWidth, 1));
             timelineView = new TimelineView(this, new Vector3(timelineLeft * presentation.BackBufferWidth, timelineTop * presentation.BackBufferWidth, 0), new Vector3(timelineSize * presentation.BackBufferWidth, timelineSize * presentation.BackBufferWidth, 1));
             //timelineView = new TimelineView(this, new Vector3(400, 400, 0), new Vector3(1500, 1500, 1));
@@ -484,6 +503,7 @@ namespace BohemianArtifact
         protected override void Update(GameTime gameTime)
         {
             materialView.Update(gameTime);
+            colorView.Update(gameTime);
             keywordView.Update(gameTime);
             timelineView.Update(gameTime);
 
@@ -540,6 +560,7 @@ namespace BohemianArtifact
                 XNA.Texturing = false;
 
                 materialView.DrawSelectable();
+                colorView.DrawSelectable();
                 keywordView.DrawSelectable();
                 timelineView.DrawSelectable();
 
@@ -563,9 +584,20 @@ namespace BohemianArtifact
             //XNA.GraphicsDevice.BlendState = BlendState.NonPremultiplied;
 
             materialView.Draw();
+            colorView.Draw();
             keywordView.Draw();
             timelineView.Draw();
 
+            //SelectableQuad qtest = new SelectableQuad(new Vector3(100, 100, 0), new Vector3(400, 100, 0), new Vector3(400, 800, 0), new Vector3(100, 800, 0), Color.Navy);
+            //qtest.Draw(false);
+
+
+            //SelectableEllipse circ = new SelectableEllipse(new Vector2(600, 600), 100f, 50f, Color.Red, Color.Black, null);
+            //XNA.PushMatrix();
+            //XNA.Translate(circ.Position);
+            //circ.DrawFillBorder(false);
+            //XNA.PopMatrix();
+           
             //rectTest1.Draw();
             //rectTest2.Draw();
             //lineTest.Draw(basicEffect);
