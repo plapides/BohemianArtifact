@@ -252,7 +252,7 @@ namespace BohemianArtifact
             artifactCircles[CENTER_CIRCLE_ID].Artifact = selectedArtifact;
             artifactCircles[CENTER_CIRCLE_ID].Circle.Texture = selectedArtifact.Texture;
 
-            Console.WriteLine("*** New selected artifact " + selectedArtifact.ArticleName + " and it's stems:");
+            Console.WriteLine("*** New selected artifact " + selectedArtifact.ArticleName + ", colors (" +  selectedArtifact.Color.ToString() + ") and it's stems:");
             Console.Write("\t");
             foreach (StemPair stempair in selectedArtifact.Stems)
             {

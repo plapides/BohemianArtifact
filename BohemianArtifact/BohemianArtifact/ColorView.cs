@@ -10,6 +10,17 @@ namespace BohemianArtifact
 {
     class ColorView : IViewBB
     {
+        class Container
+        {
+            public SelectableEllipse Ellipse;
+            public Artifact Artifact;
+            public Container(SelectableEllipse se, Artifact a)
+            {
+                Ellipse = se;
+                Artifact = a;
+            }
+        }
+
         // represents a connected color wheel
         // each node knows how to go left, right, and closer and farther from the center of the color wheel
         // lets us query "neighboring" nodes easily so we can display some nearby items for perusal
@@ -41,27 +52,17 @@ namespace BohemianArtifact
                 for (int i = 0; i < numTheta; i++)
                     for (int j = 0; j < numR; j++)
                         // array starts with radius = 1 down to 0, theta at 0 to 360
-                        wheel[i, j] = new ColorWheelNode((float)(1 - j) / (numR - 1), 360f * i / numTheta);
+                        wheel[i, j] = new ColorWheelNode((float)(1 - j) / (numR - 1), 360f * i / numTheta, j, i);
             }
 
             public void classifyArtifacts(List<Artifact> allArtifacts)
             {
-                float thetaRange = (wheel[1, 0].Theta - wheel[0, 0].Theta) / 2;
-                float rRange = (wheel[0, 1].R - wheel[0, 0].R) / 2;
-
                 foreach (Artifact a in allArtifacts)
                 {
-                    int thetaIndex = -1, rIndex = -1;
+                    int thetaIndex, rIndex;
                     float theta, r;
                     getWheelLocation(a, out theta, out r);
-                    for (int i = 0; i < numTheta && thetaIndex == -1; i++)
-                        if (thetaInBounds(theta, wheel[i, 0].Theta - thetaRange, wheel[i, 0].Theta + thetaRange))
-                            thetaIndex = i;
-                    for (int i = 0; i < numR && rIndex == -1; i++)
-                        // our split doesn't work quite as well for R because it doesn't wrap around the space
-                        // so if we're on our last R (the one that's supposed to cover all the way down to 0), we have to give it a boost
-                        if (rInBounds(r, wheel[0, i].R - (i == numR - 1 ? 3 : 1) * rRange, wheel[0, i].R + rRange))
-                            rIndex = i;
+                    getWheelArrayPosition(theta, r, out thetaIndex, out rIndex);                    
 
                     wheel[thetaIndex, rIndex].Artifacts.Add(a);
                 }
@@ -99,6 +100,7 @@ namespace BohemianArtifact
             //    }
             //}
 
+            // gets position on the color wheel for a given artifact
             private void getWheelLocation(Artifact art, out float theta, out float r)
             {
                 float v;
@@ -106,12 +108,40 @@ namespace BohemianArtifact
                 RGBtoHSV(art.Color.R, art.Color.G, art.Color.B, out theta, out r, out v);
             }
 
+            // given position on the color wheel, returns where it would be located within the array
+            private void getWheelArrayPosition(float theta, float r, out int thetaIndex, out int rIndex)
+            {
+                float thetaRange = (wheel[1, 0].Theta - wheel[0, 0].Theta) / 2;
+                float rRange = (wheel[0, 1].R - wheel[0, 0].R) / 2;
+
+                thetaIndex = rIndex = -1;
+
+                for (int i = 0; i < numTheta && thetaIndex == -1; i++)
+                    if (thetaInBounds(theta, wheel[i, 0].Theta - thetaRange, wheel[i, 0].Theta + thetaRange))
+                        thetaIndex = i;
+                for (int i = 0; i < numR && rIndex == -1; i++)
+                    // our split doesn't work quite as well for R because it doesn't wrap around the space
+                    // so if we're on our last R (the one that's supposed to cover all the way down to 0), we have to give it a boost
+                    if (rInBounds(r, wheel[0, i].R - (i == numR - 1 ? 3 : 1) * rRange, wheel[0, i].R + rRange))
+                        rIndex = i;
+            }
+
             #endregion
 
             public void Draw()
             {
                 float radius = boundingQuad.Center.X - boundingQuad.Top;
+                float rRange = (wheel[0, 1].R - wheel[0, 0].R) / 2;
 
+
+                //for (int j = 0; j < numR; j++)
+                //{
+                //    float thetaRange = (wheel[1, 0].Theta - wheel[0, 0].Theta) / 2;
+                //    for (int j = 0; i < numTheta; i++)
+                //    {
+                //        float maxRadius = 1; // the maximum 
+                //    }
+                //}
 
             }
 
@@ -120,12 +150,15 @@ namespace BohemianArtifact
         class ColorWheelNode
         {
             public float R, Theta; // polar coordinates
+            public int ThetaIndex, RIndex;
             //public ColorWheelNode Left, Right, Inner, Outer; // left, right = lower, higher theta. inner, outer = smaller, larger radius
             public List<Artifact> Artifacts; // the artifacts we've judged to belong to this spot on the color wheel
-            public ColorWheelNode(float r, float theta)
+            public ColorWheelNode(float r, float theta, int rIndex, int thetaIndex)
             {
                 R = r;
                 Theta = theta;
+                RIndex = rIndex;
+                ThetaIndex = thetaIndex;
                 Artifacts = new List<Artifact>();
             }
         }
@@ -181,7 +214,7 @@ namespace BohemianArtifact
         private SelectableText titleText;
         private BohemianArtifact bookshelf;
 
-        List<SelectableEllipse> colorCircles;
+        List<Container> colorCircles;
 
         private BoundingBox boundingBox;
 
@@ -202,30 +235,52 @@ namespace BohemianArtifact
 
             boundingBox = new BoundingBox(new Vector3(0, 0, 0), new Vector3(1, 1, 0), Color.Black, 0.005f);
 
-            colorCircles = new List<SelectableEllipse>();
-            //setupColorCircles();
-            showColorWheel();
+            colorCircles = new List<Container>();
+            setupColorCircles();
+            //showColorWheel();
         }
 
         public void setupColorCircles()
         {
             Dictionary<Color, int> dict = new Dictionary<Color, int>();
 
-            foreach (Artifact a in bookshelf.Library.Artifacts)
-            {
-                if (dict.ContainsKey(a.Color))
-                    dict[a.Color]++;
-                else
-                    dict.Add(a.Color, 1);
-            }
+            //foreach (Artifact a in bookshelf.Library.Artifacts)
+            //{
+            //    if (a.Color.B > 100)
+            //    {
+            //        if (dict.ContainsKey(a.Color))
+            //            dict[a.Color]++;
+            //        else
+            //            dict.Add(a.Color, 1);
+            //    }
+            //}
             
-            List<KeyValuePair<Color, int>> list = dict.ToList();
-            foreach (KeyValuePair<Color, int> kvp in list)
-                colorCircles.Add(new SelectableEllipse(new Vector2(), 0.02f, 0, kvp.Key, kvp.Key, null));
+            //List<KeyValuePair<Color, int>> list = dict.ToList();
+            //foreach (KeyValuePair<Color, int> kvp in list)
+            //    colorCircles.Add(new Container(new SelectableEllipse(new Vector2(), 0.02f, 0, kvp.Key, kvp.Key, null), 0));
+
+            foreach(Artifact a in bookshelf.Library.Artifacts)
+            {
+                Container c = new Container(new SelectableEllipse(new Vector2(), 0.02f, 0, a.Color, a.Color, null), a);
+                c.Ellipse.TouchReleased += new TouchReleaseEventHandler(Ellipse_TouchReleased);
+                bookshelf.SelectableObjects.AddObject(c.Ellipse);
+                colorCircles.Add(c);
+            }
 
             //alignCirclesLinear();
             alignCirclesPolar();
 
+        }
+
+        void Ellipse_TouchReleased(object sender, TouchReleaseEventArgs e)
+        {
+            SelectableEllipse ellipse = sender as SelectableEllipse;
+            Container found = null;
+            for (int i = 0; i < colorCircles.Count && found == null; i++)
+                if (colorCircles[i].Ellipse == ellipse)
+                    found = colorCircles[i];
+
+            bookshelf.Library.SelectedArtifact = found.Artifact;
         }
 
         public void showColorWheel()
@@ -233,31 +288,32 @@ namespace BohemianArtifact
             colorCircles.Clear();
             for (int i = 0; i < 360; i += 15)
             {
-                byte r, g, b;
-                HSVtoRGB(i, 1, 1, out r, out g, out b);
-                colorCircles.Add(new SelectableEllipse(new Vector2(), 0.02f, 0, new Color(r, g, b), Color.Black, null));
-                HSVtoRGB(i, 0.75f, 1, out r, out g, out b);
-                colorCircles.Add(new SelectableEllipse(new Vector2(), 0.02f, 0, new Color(r, g, b), Color.Black, null));
-                HSVtoRGB(i, 0.5f, 1, out r, out g, out b);
-                colorCircles.Add(new SelectableEllipse(new Vector2(), 0.02f, 0, new Color(r, g, b), Color.Black, null));
-                HSVtoRGB(i, 0.25f, 1, out r, out g, out b);
-                colorCircles.Add(new SelectableEllipse(new Vector2(), 0.02f, 0, new Color(r, g, b), Color.Black, null));
+                //byte r, g, b;
+                //HSVtoRGB(i, 1, 1, out r, out g, out b);
+                //colorCircles.Add(new SelectableEllipse(new Vector2(), 0.02f, 0, new Color(r, g, b), Color.Black, null));
+                //HSVtoRGB(i, 0.75f, 1, out r, out g, out b);
+                //colorCircles.Add(new SelectableEllipse(new Vector2(), 0.02f, 0, new Color(r, g, b), Color.Black, null));
+                //HSVtoRGB(i, 0.5f, 1, out r, out g, out b);
+                //colorCircles.Add(new SelectableEllipse(new Vector2(), 0.02f, 0, new Color(r, g, b), Color.Black, null));
+                //HSVtoRGB(i, 0.25f, 1, out r, out g, out b);
+                //colorCircles.Add(new SelectableEllipse(new Vector2(), 0.02f, 0, new Color(r, g, b), Color.Black, null));
             }
             alignCirclesPolar();
         }
 
         public void alignCirclesLinear()
         {
-            float dx = colorCircles[0].Radius;
+            float dx = colorCircles[0].Ellipse.Radius;
             float dy = 0.15f;
 
-            foreach (SelectableEllipse se in colorCircles)
+            foreach (Container c in colorCircles)
             {
+                SelectableEllipse se = c.Ellipse;
                 se.Position = new Vector3(dx, dy, 0);
                 dx += se.Radius * 2;
                 if (dx > 1 - se.Radius)
                 {
-                    dx = colorCircles[0].Radius;
+                    dx = colorCircles[0].Ellipse.Radius;
                     dy += se.Radius * 2;
                 }
             }
@@ -269,17 +325,20 @@ namespace BohemianArtifact
             float radius = 0.4f;
             float rotate = 90f; // in degrees, rotate the color wheel (normally, red = 0 degrees)
 
-            foreach (SelectableEllipse se in colorCircles)
+            foreach (Container c in colorCircles)
             {
+                SelectableEllipse se = c.Ellipse;
                 float h, s, v;
                 RGBtoHSV(se.Color.R, se.Color.G, se.Color.B, out h, out s, out v);
                 double theta = (h + rotate) * Math.PI / 180.0f;
-                float r = s;
+                float r = v;
 
                 Vector3 unitCirclePos = new Vector3(r * (float)Math.Cos(theta), r * (float)Math.Sin(theta), 0);
                 se.Position = unitCirclePos * radius + wheelCenter;
             }
         }
+
+        #region Color Conversion Algorithms
 
         // h in [0, 360), s in [0, 1], v in [0, 1]
         // r, g, b in [0, 255]
@@ -365,6 +424,8 @@ namespace BohemianArtifact
                 h += 360;
         }
 
+        #endregion
+
         public void Update(GameTime time)
         {
             //animationTimer.Update(time.TotalGameTime.TotalSeconds);
@@ -385,11 +446,11 @@ namespace BohemianArtifact
             titleText.DrawFill();
             boundingBox.Draw();
 
-            foreach (SelectableEllipse se in colorCircles)
+            foreach (Container c in colorCircles)
             {
                 XNA.PushMatrix();
-                XNA.Translate(se.Position);
-                se.DrawFill(false);
+                XNA.Translate(c.Ellipse.Position);
+                c.Ellipse.DrawFill(false);
                 XNA.PopMatrix();
             }
 
@@ -402,7 +463,13 @@ namespace BohemianArtifact
             XNA.Translate(position);
             XNA.Scale(size);
 
-
+            foreach (Container c in colorCircles)
+            {
+                XNA.PushMatrix();
+                XNA.Translate(c.Ellipse.Position);
+                c.Ellipse.DrawSelectable();
+                XNA.PopMatrix();
+            }
 
 
             XNA.PopMatrix();

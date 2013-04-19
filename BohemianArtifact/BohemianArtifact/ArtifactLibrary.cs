@@ -346,7 +346,7 @@ namespace BohemianArtifact
 
             // catalog number (non-language specific)
             mCatalogNumber = node.ChildNodes[0].InnerText;
-            texture = XNA.LoadTexture(BohemianArtifact.TexturePath + "artifact\\" + mCatalogNumber + ".jpg");
+            texture = XNA.LoadTexture(BohemianArtifact.TexturePath + "artifacts\\" + mCatalogNumber + ".jpg");
 
             // the date it was added to the catalog
             float catalogYear = Convert.ToSingle(mCatalogNumber.Substring(0, mCatalogNumber.IndexOf(".")));
@@ -404,7 +404,7 @@ namespace BohemianArtifact
             string col = node.ChildNodes[28].InnerText;
             int r = Convert.ToInt32(col.Substring(1, 3));
             int g = Convert.ToInt32(col.Substring(5, 3));
-            int b = Convert.ToInt32(col.Substring(9, 2));
+            int b = Convert.ToInt32(col.Substring(9, 3));
             color = new Color(r, g, b);
             //r12rg456b789
             //012345678901
@@ -572,10 +572,10 @@ namespace BohemianArtifact
             {
                 // this check is to load only those artifacts whose 512px images exist
                 //if (66 < numArtifactsLoaded)
-                if (16 < numArtifactsLoaded)
-                {
-                    break;
-                }
+                //if (16 < numArtifactsLoaded)
+                //{
+                //    break;
+                //}
 
                 if (child.Name == "Row")
                 {
