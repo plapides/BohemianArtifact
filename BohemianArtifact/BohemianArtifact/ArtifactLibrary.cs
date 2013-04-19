@@ -572,7 +572,7 @@ namespace BohemianArtifact
             {
                 // this check is to load only those artifacts whose 512px images exist
                 //if (66 < numArtifactsLoaded)
-                if (52 < numArtifactsLoaded)
+                if (167 < numArtifactsLoaded)
                 {
                     //break;
                 }
