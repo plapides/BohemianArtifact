@@ -194,13 +194,25 @@ namespace BohemianArtifact
             }
 
             // check if the touch is over top of a new object
-            if (obj != currentObject && currentObject != null)
+            if (obj != null && obj != currentObject)
+            {
+                if (currentObject != null)
+                {
+                    currentObject.TouchId = NO_ID;
+                }
+                currentObject = obj;
+                currentObject.TouchId = id;
+            }
+
+            /*
+            if (currentObject != null && obj != currentObject)
             {
                 // if it's a new object, clear the touchId of the previous currentObject
                 currentObject.TouchId = NO_ID;
                 currentObject = obj;
                 currentObject.TouchId = id;
             }
+            //*/
         }
 
         public void ClearObjects()
@@ -212,6 +224,7 @@ namespace BohemianArtifact
             if (currentObject != null)
             {
                 currentObject.TouchId = NO_ID;
+                currentObject = null;
             }
         }
     }

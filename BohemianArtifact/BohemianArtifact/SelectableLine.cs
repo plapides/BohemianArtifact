@@ -9,6 +9,19 @@ namespace BohemianArtifact
         private VertexPositionColorTexture[] linePoints = new VertexPositionColorTexture[2];
         private float selectableThickness;
 
+        public Color Color
+        {
+            get
+            {
+                return base.Color;
+            }
+            set
+            {
+                linePoints[0].Color = value;
+                linePoints[1].Color = value;
+                base.Color = value;
+            }
+        }
         public VertexPositionColorTexture[] LinePoints
         {
             get

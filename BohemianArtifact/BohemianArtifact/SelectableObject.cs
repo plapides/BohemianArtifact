@@ -4,7 +4,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace BohemianArtifact
 {
-    public class TouchReleaseEventArgs : EventArgs
+    public class TouchArgs : EventArgs
     {
         private int touchId;
         public int TouchId
@@ -14,13 +14,14 @@ namespace BohemianArtifact
                 return touchId;
             }
         }
-        public TouchReleaseEventArgs(int touchId)
+        public TouchArgs(int touchId)
         {
             this.touchId = touchId;
         }
     }
 
-    public delegate void TouchReleaseEventHandler(object sender, TouchReleaseEventArgs e);
+    public delegate void TouchReleaseEventHandler(object sender, TouchArgs e);
+    public delegate void TouchActivatedEventHandler(object sender, TouchArgs e);
 
     public class SelectableObject
     {
@@ -33,6 +34,7 @@ namespace BohemianArtifact
         protected static GraphicsDevice graphicsDevice;
 
         public event TouchReleaseEventHandler TouchReleased;
+        public event TouchActivatedEventHandler TouchActivated;
 
         public bool Selected
         {
@@ -53,18 +55,20 @@ namespace BohemianArtifact
             }
             set
             {
-                if (value == Touch.NO_ID && touchId != Touch.NO_ID)
+                if (value == Touch.NO_ID && touchId != Touch.NO_ID && TouchReleased != null)
                 {
-                    if (TouchReleased != null)
-                    {
-                        TouchReleased(this, new TouchReleaseEventArgs(touchId));
-                    }
+                    TouchArgs touchArgs = new TouchArgs(touchId);
+                    touchId = value;
+                    TouchReleased(this, touchArgs);
                 }
-                else if (value != Touch.NO_ID)
+                if (touchId == Touch.NO_ID && value != Touch.NO_ID && TouchActivated != null)
                 {
-
+                    TouchArgs touchArgs = new TouchArgs(value);
+                    touchId = value;
+                    TouchActivated(this, touchArgs);
                 }
                 touchId = value;
+                selected = (touchId != Touch.NO_ID);
             }
         }
 

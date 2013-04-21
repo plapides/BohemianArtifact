@@ -213,7 +213,7 @@ namespace BohemianArtifact
             return null;
         }
 
-        private void Circle_TouchReleased(object sender, TouchReleaseEventArgs e)
+        private void Circle_TouchReleased(object sender, TouchArgs e)
         {
             if (bookshelf.TouchPoints.ContainsKey(e.TouchId) == false)
             {
