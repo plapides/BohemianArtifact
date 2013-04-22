@@ -132,6 +132,7 @@ namespace BohemianArtifact
 
         private void LoadMaterialTextures()
         {
+
             Dictionary<string, int> materialList = bookshelf.Library.GetMaterialsTally(new List<string>());
 
             foreach (string material in materialList.Keys)
