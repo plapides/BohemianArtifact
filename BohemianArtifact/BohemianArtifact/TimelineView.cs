@@ -12,7 +12,7 @@ namespace BohemianArtifact
     {
         public class TimelineContainer
         {
-//            public SelectableEllipse Circle;
+            public SelectableEllipse Circle;
             public Artifact Artifact;
             public VagueDate Manufacture;
             public VagueDate Use;
@@ -132,8 +132,9 @@ namespace BohemianArtifact
         private TimelineContainer highlightedContainer;
         private List<TimelineContainer> relatedContainers;
 
-        private float alphaRelated = 0.2f;
-        private float alphaSelected = 0.7f;
+        private const float ALPHA_RELATED = 0.2f;
+        private const float ALPHA_SELECTED = 0.7f;
+        private const float TEXT_LABEL_SCALE = 0.0003f;
 
         private List<KeyValuePair<TimelineContainer, float>> topSorted;
         private List<KeyValuePair<TimelineContainer, float>> bottomSorted;
@@ -264,13 +265,14 @@ namespace BohemianArtifact
             useMaxYear = -10000;
             manuMinYear = 10000;
             manuMaxYear = -10000;
+
             foreach (Artifact artifact in bookshelf.Library.Artifacts)
             {
                 TimelineContainer newContainer = new TimelineContainer();
                 newContainer.Artifact = artifact;
 
                 Color diminishedColor = artifact.Color;
-                diminishedColor.A = (byte)(alphaRelated * 255);
+                diminishedColor.A = (byte)(ALPHA_RELATED * 255);
 
                 newContainer.TopCurve = new SelectableCurve(diminishedColor);
                 newContainer.BottomCurve = new SelectableCurve(diminishedColor);
@@ -288,14 +290,15 @@ namespace BohemianArtifact
                 bookshelf.SelectableObjects.AddObject(newContainer.TopLine);
                 bookshelf.SelectableObjects.AddObject(newContainer.BottomLine);
 
+                float circleRadius = 0.02f;
+                newContainer.Circle = new SelectableEllipse(Vector2.Zero, circleRadius, circleRadius * 0.05f, Color.White, new Color(1, 1, 1, 0), Color.Black, artifact.Texture);
+
                 timelineArtifactList.Add(newContainer);
                 lineArtifactDictionary.Add(newContainer.TopLine, newContainer);
                 lineArtifactDictionary.Add(newContainer.BottomLine, newContainer);
 
                 /*
                 // don't bother checking the qualifier of the catalog date. we assume they are exact
-                newContainer.TopCurve.TopLeftAlpha = 0.5f;
-                newContainer.TopCurve.TopRightAlpha = 0.5f;
                 // check usedate qualifier
                 switch (artifact.UseDate.DateQualifier)
                 {
@@ -308,33 +311,23 @@ namespace BohemianArtifact
                         newContainer.BottomCurve.TopRightAlpha = 0;
                         break;
                     case VagueDate.Qualifier.Circa:
-                        newContainer.TopCurve.BottomLeftAlpha = 0;
-                        newContainer.TopCurve.BottomRightAlpha = 0;
-                        newContainer.BottomCurve.TopLeftAlpha = 0;
-                        newContainer.BottomCurve.TopRightAlpha = 0;
-                        break;
-                    default:
-                        newContainer.TopCurve.BottomLeftAlpha = 0.5f;
-                        newContainer.TopCurve.BottomRightAlpha = 0.5f;
-                        newContainer.BottomCurve.TopLeftAlpha = 0.5f;
-                        newContainer.BottomCurve.TopRightAlpha = 0.5f;
+                        //newContainer.TopCurve.BottomLeftAlpha = 0;
+                        //newContainer.TopCurve.BottomRightAlpha = 0;
+                        //newContainer.BottomCurve.TopLeftAlpha = 0;
+                        //newContainer.BottomCurve.TopRightAlpha = 0;
                         break;
                 }
                 switch (artifact.ManufactureDate.DateQualifier)
                 {
                     case VagueDate.Qualifier.Before:
-                        newContainer.BottomCurve.BottomLeftAlpha = 0.05f;
+                        newContainer.BottomCurve.BottomLeftAlpha = 0;
                         break;
                     case VagueDate.Qualifier.After:
-                        newContainer.BottomCurve.BottomRightAlpha = 0.05f;
+                        newContainer.BottomCurve.BottomRightAlpha = 0;
                         break;
                     case VagueDate.Qualifier.Circa:
-                        newContainer.BottomCurve.BottomLeftAlpha = 0.05f;
-                        newContainer.BottomCurve.BottomRightAlpha = 0.05f;
-                        break;
-                    default:
-                        newContainer.BottomCurve.BottomLeftAlpha = 0.5f;
-                        newContainer.BottomCurve.BottomRightAlpha = 0.5f;
+                        //newContainer.BottomCurve.BottomLeftAlpha = 0;
+                        //newContainer.BottomCurve.BottomRightAlpha = 0;
                         break;
                 }
                 //*/
@@ -566,12 +559,27 @@ namespace BohemianArtifact
             // draw the selected container
             selectedContainer.TopCurve.Draw();
             selectedContainer.BottomCurve.Draw();
+            XNA.PushMatrix();
+            XNA.Translate(selectedContainer.Circle.Position);
+            selectedContainer.Circle.DrawFillBorder(true);
+            XNA.RotateZ(-(float)Math.PI / 4);
+            XNA.Translate(selectedContainer.Circle.Radius * 1.05f, -selectedContainer.Artifact.Text.TextSize.Y * TEXT_LABEL_SCALE / 2, 0);
+            selectedContainer.Artifact.Text.DrawScale(TEXT_LABEL_SCALE);
+            XNA.PopMatrix();
+
             // draw the highlighted container
             if (highlightedContainer != null && highlightedContainer != selectedContainer)
             {
                 // only draw if there is something highlighted and it's not the same as the selectedContainer
                 highlightedContainer.TopCurve.Draw();
                 highlightedContainer.BottomCurve.Draw();
+                XNA.PushMatrix();
+                XNA.Translate(highlightedContainer.Circle.Position);
+                highlightedContainer.Circle.DrawFillBorder(true);
+                XNA.RotateZ(-(float)Math.PI / 4);
+                XNA.Translate(highlightedContainer.Circle.Radius * 1.05f, -highlightedContainer.Artifact.Text.TextSize.Y * TEXT_LABEL_SCALE / 2, 0);
+                highlightedContainer.Artifact.Text.DrawScale(TEXT_LABEL_SCALE);
+                XNA.PopMatrix();
             }
             // draw the related containers
             foreach (TimelineContainer relatedContainer in relatedContainers)
@@ -706,6 +714,7 @@ namespace BohemianArtifact
                 container.TopLine.LinePoints[0].Position.X = topLeft;
                 container.TopLine.LinePoints[1].Position.X = bottomLeft;
                 container.TopLine.Recompute();
+                container.Circle.Position = new Vector3(topLeft, catalogLineHeight - lineThickness / 2, 0);
             }
         }
         
@@ -1080,8 +1089,8 @@ namespace BohemianArtifact
             {
                 // deselect the current selected artifact
                 selectedContainer.Selected = false;
-                selectedContainer.TopCurve.Alpha = alphaRelated;
-                selectedContainer.BottomCurve.Alpha = alphaRelated;
+                selectedContainer.TopCurve.Alpha = ALPHA_RELATED;
+                selectedContainer.BottomCurve.Alpha = ALPHA_RELATED;
             }
 
             // update the selected container
@@ -1089,8 +1098,8 @@ namespace BohemianArtifact
 
             // and change it's status to being selected
             selectedContainer.Selected = true;
-            selectedContainer.TopCurve.Alpha = alphaSelected;
-            selectedContainer.BottomCurve.Alpha = alphaSelected;
+            selectedContainer.TopCurve.Alpha = ALPHA_SELECTED;
+            selectedContainer.BottomCurve.Alpha = ALPHA_SELECTED;
 
             // since something was just selected, nothing is highlighted
             highlightedContainer = null;

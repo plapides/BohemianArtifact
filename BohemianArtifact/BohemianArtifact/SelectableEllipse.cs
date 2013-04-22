@@ -53,6 +53,17 @@ namespace BohemianArtifact
         {
             get { return color; }
         }
+        public float Alpha
+        {
+            get
+            {
+                return (float)screenPoints[0].Color.A * 255;
+            }
+            set
+            {
+                SetAlpha(value);
+            }
+        }
 
         private int subdivisions = 64;
         private VertexPositionColorTexture[] screenPoints;
@@ -112,6 +123,16 @@ namespace BohemianArtifact
             edgeIndices = new int[3 * subdivisions * 2];
 
             Recompute();
+        }
+
+        private void SetAlpha(float alpha)
+        {
+            for (int i = 0; i < subdivisions + 1; i++)
+            {
+                screenPoints[i].Color.A = (byte)(color.A * alpha);
+                edgePoints[i].Color.A = (byte)(outsideEdgeColor.A * alpha);
+                edgePoints[i + subdivisions + 1].Color.A = (byte)(insideEdgeColor.A * alpha);
+            }
         }
 
         public void Recompute()

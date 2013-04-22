@@ -15,6 +15,7 @@ namespace BohemianArtifact
         private Vector3[][] intermediary;
         private VertexPositionColorTexture[] screenPoints;
         private VertexPositionColorTexture[] selectPoints;
+        private float[] cornerAlpha;
         private int[] indices;
 
         public float Alpha
@@ -32,28 +33,28 @@ namespace BohemianArtifact
         {
             set
             {
-                screenPoints[0].Color.A = (byte)(value * 255);
+                cornerAlpha[0] = value;
             }
         }
         public float TopRightAlpha
         {
             set
             {
-                screenPoints[1].Color.A = (byte)(value * 255);
+                cornerAlpha[1] = value;
             }
         }
         public float BottomLeftAlpha
         {
             set
             {
-                screenPoints[3].Color.A = (byte)(value * 255);
+                cornerAlpha[3] = value;
             }
         }
         public float BottomRightAlpha
         {
             set
             {
-                screenPoints[2].Color.A = (byte)(value * 255);
+                cornerAlpha[2] = value;
             }
         }
 
@@ -64,6 +65,8 @@ namespace BohemianArtifact
             screenPoints = new VertexPositionColorTexture[subdivisions * 2];
             selectPoints = new VertexPositionColorTexture[subdivisions * 2];
             indices = new int[3 * subdivisions];
+
+            cornerAlpha = new float[4] { 1, 1, 1, 1 };
 
             // create left points array and initialize each vertex
             leftPoints = new VertexPositionColorTexture[GetNumPointsAfterIterations(6, iterations)];
@@ -147,10 +150,10 @@ namespace BohemianArtifact
 
         private void SetAlpha(float alpha)
         {
-            screenPoints[0].Color.A = (byte)(alpha * 255);
-            screenPoints[1].Color.A = (byte)(alpha * 255);
-            screenPoints[2].Color.A = (byte)(alpha * 255);
-            screenPoints[3].Color.A = (byte)(alpha * 255);
+            for (int i = 0; i < 4; i++)
+            {
+                screenPoints[i].Color.A = (byte)(alpha * cornerAlpha[i] * 255);
+            }
         }
 
         public void Draw()
