@@ -745,7 +745,7 @@ namespace BohemianArtifact
 
         }
 
-        void Ellipse_TouchReleased(object sender, TouchReleaseEventArgs e)
+        void Ellipse_TouchReleased(object sender, TouchArgs e)
         {
             SelectableEllipse ellipse = sender as SelectableEllipse;
             Container found = null;

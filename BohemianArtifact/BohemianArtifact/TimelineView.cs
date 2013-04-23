@@ -12,13 +12,17 @@ namespace BohemianArtifact
     {
         public class TimelineContainer
         {
-//            public SelectableEllipse Circle;
+            public SelectableEllipse Circle;
             public Artifact Artifact;
             public VagueDate Manufacture;
             public VagueDate Use;
             public VagueDate Catalog;
             public SelectableCurve TopCurve;
             public SelectableCurve BottomCurve;
+            public SelectableLine TopLine;
+            public SelectableLine BottomLine;
+            public bool Selected = false;
+            public bool Related = false;
 
             public override bool Equals(object obj)
             {
@@ -86,17 +90,21 @@ namespace BohemianArtifact
         private float manufactureLineHeight = (7 / 8.0f) * MAX_HEIGHT;
         private float lineThickness = 0.075f * MAX_HEIGHT;
 
+        // lines that are rendered to show the linelines
         private SelectableLine catalogLine;
         private SelectableLine useLine;
         private SelectableLine manufactureLine;
 
+        // widgets
         private SelectableLine[] catalogWidgets;
         private SelectableLine[] useWidgets;
         private SelectableLine[] manufactureWidgets;
         private const int LEFT_WIDGET = 0;
         private const int MID_WIDGET = 1;
         private const int RIGHT_WIDGET = 2;
+        private int widgetTouchId = Touch.NO_ID;
 
+        // stuff to handle the timeline ranges
         float catalogMinYear = 10000;
         float catalogMaxYear = -10000;
         float useMinYear = 10000;
@@ -109,8 +117,8 @@ namespace BohemianArtifact
         private const int L_OFFSET = 1;
         private const int R_RANGE = 2;
         private const int R_OFFSET = 3;
-        private int timelineTouchId = Touch.NO_ID;
 
+        // tick marks
         private List<TimelineYearTick> catalogTicks;
         private List<TimelineYearTick> useTicks;
         private List<TimelineYearTick> manufactureTicks;
@@ -119,6 +127,14 @@ namespace BohemianArtifact
         private float manufactureTickSkipScale;
 
         private List<TimelineContainer> timelineArtifactList;
+        private Dictionary<SelectableLine, TimelineContainer> lineArtifactDictionary;
+        private TimelineContainer selectedContainer;
+        private TimelineContainer highlightedContainer;
+        private List<TimelineContainer> relatedContainers;
+
+        private const float ALPHA_RELATED = 0.2f;
+        private const float ALPHA_SELECTED = 0.7f;
+        private const float TEXT_LABEL_SCALE = 0.0003f;
 
         private List<KeyValuePair<TimelineContainer, float>> topSorted;
         private List<KeyValuePair<TimelineContainer, float>> bottomSorted;
@@ -203,6 +219,9 @@ namespace BohemianArtifact
                 catalogWidgets[i] = new SelectableLine(new Vector3((float)i / 3, catalogLineHeight, 0), new Vector3((float)(i + 1) / 3, catalogLineHeight, 0), new Color(i * 255 / 2, 0, 0), lineThickness * 2);
                 useWidgets[i] = new SelectableLine(new Vector3((float)i / 3, useLineHeight, 0), new Vector3((float)(i + 1) / 3, useLineHeight, 0), new Color(0, i * 255 / 2, 0), lineThickness * 2);
                 manufactureWidgets[i] = new SelectableLine(new Vector3((float)i / 3, manufactureLineHeight, 0), new Vector3((float)(i + 1) / 3, manufactureLineHeight, 0), new Color(0, 0, i * 255 / 2), lineThickness * 2);
+                catalogWidgets[i].TouchActivated += new TouchActivatedEventHandler(TimelineView_TouchActivated);
+                useWidgets[i].TouchActivated += new TouchActivatedEventHandler(TimelineView_TouchActivated);
+                manufactureWidgets[i].TouchActivated += new TouchActivatedEventHandler(TimelineView_TouchActivated);
                 bookshelf.SelectableObjects.AddObject(catalogWidgets[i]);
                 bookshelf.SelectableObjects.AddObject(useWidgets[i]);
                 bookshelf.SelectableObjects.AddObject(manufactureWidgets[i]);
@@ -224,9 +243,14 @@ namespace BohemianArtifact
             manufactureCircles[0] = new SelectableEllipse(Vector2.Zero, 0.01f, 0.001f, Color.Orange, Color.Black, null);
             manufactureCircles[1] = new SelectableEllipse(Vector2.Zero, 0.01f, 0.001f, Color.Pink, Color.Black, null);
 
-            timelineArtifactList = new List<TimelineContainer>();
             topSorted = new List<KeyValuePair<TimelineContainer, float>>();
             bottomSorted = new List<KeyValuePair<TimelineContainer, float>>();
+
+            timelineArtifactList = new List<TimelineContainer>();
+            lineArtifactDictionary = new Dictionary<SelectableLine, TimelineContainer>();
+            selectedContainer = null;
+            highlightedContainer = null;
+            relatedContainers = new List<TimelineContainer>();
             InitializeTimelineList();
 
             animationTimer = new Timer(0.5f);
@@ -241,16 +265,40 @@ namespace BohemianArtifact
             useMaxYear = -10000;
             manuMinYear = 10000;
             manuMaxYear = -10000;
+
             foreach (Artifact artifact in bookshelf.Library.Artifacts)
             {
                 TimelineContainer newContainer = new TimelineContainer();
                 newContainer.Artifact = artifact;
-                newContainer.TopCurve = new SelectableCurve(artifact.Color);
-                newContainer.BottomCurve = new SelectableCurve(artifact.Color);
+
+                Color diminishedColor = artifact.Color;
+                diminishedColor.A = (byte)(ALPHA_RELATED * 255);
+
+                newContainer.TopCurve = new SelectableCurve(diminishedColor);
+                newContainer.BottomCurve = new SelectableCurve(diminishedColor);
+                bookshelf.SelectableObjects.AddObject(newContainer.TopCurve);
+                bookshelf.SelectableObjects.AddObject(newContainer.BottomCurve);
+
+                float selectableLineThickness = 0.0075f;
+                newContainer.TopLine = new SelectableLine(new Vector3(0, catalogLineHeight + lineThickness / 2, 0), new Vector3(0, useLineHeight - lineThickness / 2, 0), Color.LightGray, selectableLineThickness);
+                newContainer.TopLine.TouchActivated += new TouchActivatedEventHandler(Line_TouchActivated);
+                newContainer.TopLine.TouchReleased += new TouchReleaseEventHandler(Line_TouchReleased);
+                newContainer.BottomLine = new SelectableLine(new Vector3(0, useLineHeight + lineThickness / 2, 0), new Vector3(0, manufactureLineHeight - lineThickness / 2, 0), Color.LightGray, selectableLineThickness);
+                newContainer.BottomLine.TouchActivated += new TouchActivatedEventHandler(Line_TouchActivated);
+                newContainer.BottomLine.TouchReleased += new TouchReleaseEventHandler(Line_TouchReleased);
+                //newContainer.BottomLine.TouchActivated += new TouchActivatedEventHandler(Line_TouchActivated);
+                bookshelf.SelectableObjects.AddObject(newContainer.TopLine);
+                bookshelf.SelectableObjects.AddObject(newContainer.BottomLine);
+
+                float circleRadius = 0.02f;
+                newContainer.Circle = new SelectableEllipse(Vector2.Zero, circleRadius, circleRadius * 0.05f, Color.White, new Color(1, 1, 1, 0), Color.Black, artifact.Texture);
+
+                timelineArtifactList.Add(newContainer);
+                lineArtifactDictionary.Add(newContainer.TopLine, newContainer);
+                lineArtifactDictionary.Add(newContainer.BottomLine, newContainer);
+
                 /*
                 // don't bother checking the qualifier of the catalog date. we assume they are exact
-                newContainer.TopCurve.TopLeftAlpha = 0.5f;
-                newContainer.TopCurve.TopRightAlpha = 0.5f;
                 // check usedate qualifier
                 switch (artifact.UseDate.DateQualifier)
                 {
@@ -263,39 +311,26 @@ namespace BohemianArtifact
                         newContainer.BottomCurve.TopRightAlpha = 0;
                         break;
                     case VagueDate.Qualifier.Circa:
-                        newContainer.TopCurve.BottomLeftAlpha = 0;
-                        newContainer.TopCurve.BottomRightAlpha = 0;
-                        newContainer.BottomCurve.TopLeftAlpha = 0;
-                        newContainer.BottomCurve.TopRightAlpha = 0;
-                        break;
-                    default:
-                        newContainer.TopCurve.BottomLeftAlpha = 0.5f;
-                        newContainer.TopCurve.BottomRightAlpha = 0.5f;
-                        newContainer.BottomCurve.TopLeftAlpha = 0.5f;
-                        newContainer.BottomCurve.TopRightAlpha = 0.5f;
+                        //newContainer.TopCurve.BottomLeftAlpha = 0;
+                        //newContainer.TopCurve.BottomRightAlpha = 0;
+                        //newContainer.BottomCurve.TopLeftAlpha = 0;
+                        //newContainer.BottomCurve.TopRightAlpha = 0;
                         break;
                 }
                 switch (artifact.ManufactureDate.DateQualifier)
                 {
                     case VagueDate.Qualifier.Before:
-                        newContainer.BottomCurve.BottomLeftAlpha = 0.05f;
+                        newContainer.BottomCurve.BottomLeftAlpha = 0;
                         break;
                     case VagueDate.Qualifier.After:
-                        newContainer.BottomCurve.BottomRightAlpha = 0.05f;
+                        newContainer.BottomCurve.BottomRightAlpha = 0;
                         break;
                     case VagueDate.Qualifier.Circa:
-                        newContainer.BottomCurve.BottomLeftAlpha = 0.05f;
-                        newContainer.BottomCurve.BottomRightAlpha = 0.05f;
-                        break;
-                    default:
-                        newContainer.BottomCurve.BottomLeftAlpha = 0.5f;
-                        newContainer.BottomCurve.BottomRightAlpha = 0.5f;
+                        //newContainer.BottomCurve.BottomLeftAlpha = 0;
+                        //newContainer.BottomCurve.BottomRightAlpha = 0;
                         break;
                 }
                 //*/
-                bookshelf.SelectableObjects.AddObject(newContainer.TopCurve);
-                bookshelf.SelectableObjects.AddObject(newContainer.BottomCurve);
-                timelineArtifactList.Add(newContainer);
 
                 float useLength = newContainer.Artifact.UseDate.EndYear + newContainer.Artifact.UseDate.EndError - newContainer.Artifact.UseDate.StartYear - newContainer.Artifact.UseDate.StartError;
                 float manuLength = newContainer.Artifact.ManufactureDate.EndYear + newContainer.Artifact.ManufactureDate.EndError - newContainer.Artifact.ManufactureDate.StartYear - newContainer.Artifact.ManufactureDate.StartError;
@@ -372,6 +407,66 @@ namespace BohemianArtifact
             UpdateBottomCurves();
         }
 
+        private void TimelineView_TouchActivated(object sender, TouchArgs e)
+        {
+            if (bookshelf.TouchPoints.ContainsKey(e.TouchId) == true)
+            {
+                if (bookshelf.TouchPoints[e.TouchId].OriginObject == sender)
+                {
+                    // only set the widget id if the touch in question originated on the widget
+                    // e.g. if we happened to drag our finger over top of the widget, do nothing
+                    widgetTouchId = e.TouchId;
+                }
+            }
+        }
+
+        void Line_TouchReleased(object sender, TouchArgs e)
+        {
+            if (widgetTouchId != Touch.NO_ID)
+            {
+                // get out of here if we are touching the widgets
+                return;
+            }
+
+            if (bookshelf.TouchPoints.ContainsKey(e.TouchId) == false)
+            {
+                // this touch release was caused by a touch up event, so the user has "SELECTED" a certain artifact
+                SelectableLine line = (SelectableLine)sender;
+                if (lineArtifactDictionary.ContainsKey(line) == true)
+                {
+                    TimelineContainer container = lineArtifactDictionary[line];
+                    bookshelf.Library.SelectedArtifact = container.Artifact;
+                }
+            }
+            else
+            {
+                // this touch release was caused by the user scrubbing over this line
+                // start the fade timer
+                highlightedContainer = null;
+            }
+        }
+
+        private void Line_TouchActivated(object sender, TouchArgs e)
+        {
+            if (widgetTouchId != Touch.NO_ID)
+            {
+                // get out of here if we are touching the widgets
+                return;
+            }
+
+            SelectableLine line = (SelectableLine)sender;
+            if (lineArtifactDictionary.ContainsKey(line) == true)
+            {
+                // container is only highlighted if we are not using the timeline widgets
+                highlightedContainer = lineArtifactDictionary[line];
+            }
+
+            //Console.WriteLine("line was touched with id " + e.TouchId);
+            //SelectableLine line = (SelectableLine)sender;
+            //line.Color = Color.Black;
+            //line.Selected = true;
+        }
+
         private int CompareTimelineArea(KeyValuePair<TimelineContainer, float> a, KeyValuePair<TimelineContainer, float> b)
         {
             if (a.Value < b.Value)
@@ -440,13 +535,57 @@ namespace BohemianArtifact
             //}
 
             XNA.GraphicsDevice.BlendState = BlendState.NonPremultiplied;
-            foreach (KeyValuePair<TimelineContainer, float> kvp in topSorted)
+            //XNA.GraphicsDevice.BlendState = BlendState.AlphaBlend;
+            foreach (TimelineContainer container in timelineArtifactList)
             {
-                kvp.Key.TopCurve.Draw();
+                if (container.Selected == true || container.Related == true)
+                {
+                    // if the container is selected or related we should skip it since we will draw it after the lines so it will be on top
+                    continue;
+                }
+
+                if (container.TopLine.Selected == true || container.BottomLine.Selected == true)
+                {
+                    // if we are not touching a widget, and either the top line or bottom line are being selected, then draw the curve
+                    //container.TopCurve.Draw();
+                    //container.BottomCurve.Draw();
+                }
+                else
+                {
+                }
+                container.TopLine.Draw();
+                container.BottomLine.Draw();
             }
-            foreach (KeyValuePair<TimelineContainer, float> kvp in bottomSorted)
+            // draw the selected container
+            selectedContainer.TopCurve.Draw();
+            selectedContainer.BottomCurve.Draw();
+            XNA.PushMatrix();
+            XNA.Translate(selectedContainer.Circle.Position);
+            selectedContainer.Circle.DrawFillBorder(true);
+            XNA.RotateZ(-(float)Math.PI / 4);
+            XNA.Translate(selectedContainer.Circle.Radius * 1.05f, -selectedContainer.Artifact.Text.TextSize.Y * TEXT_LABEL_SCALE / 2, 0);
+            selectedContainer.Artifact.Text.DrawScale(TEXT_LABEL_SCALE);
+            XNA.PopMatrix();
+
+            // draw the highlighted container
+            if (highlightedContainer != null && highlightedContainer != selectedContainer)
             {
-                kvp.Key.BottomCurve.Draw();
+                // only draw if there is something highlighted and it's not the same as the selectedContainer
+                highlightedContainer.TopCurve.Draw();
+                highlightedContainer.BottomCurve.Draw();
+                XNA.PushMatrix();
+                XNA.Translate(highlightedContainer.Circle.Position);
+                highlightedContainer.Circle.DrawFillBorder(true);
+                XNA.RotateZ(-(float)Math.PI / 4);
+                XNA.Translate(highlightedContainer.Circle.Radius * 1.05f, -highlightedContainer.Artifact.Text.TextSize.Y * TEXT_LABEL_SCALE / 2, 0);
+                highlightedContainer.Artifact.Text.DrawScale(TEXT_LABEL_SCALE);
+                XNA.PopMatrix();
+            }
+            // draw the related containers
+            foreach (TimelineContainer relatedContainer in relatedContainers)
+            {
+                relatedContainer.TopCurve.Draw();
+                relatedContainer.BottomCurve.Draw();
             }
 
             XNA.GraphicsDevice.BlendState = BlendState.AlphaBlend;
@@ -514,20 +653,17 @@ namespace BohemianArtifact
             XNA.Translate(position);
             XNA.Scale(size);
 
-            foreach (KeyValuePair<TimelineContainer, float> kvp in topSorted)
-            {
-                kvp.Key.TopCurve.DrawSelectable();
-            }
-            foreach (KeyValuePair<TimelineContainer, float> kvp in bottomSorted)
-            {
-                kvp.Key.BottomCurve.DrawSelectable();
-            }
-
             for (int i = 0; i < 3; i++)
             {
                 catalogWidgets[i].DrawSelectable();
                 useWidgets[i].DrawSelectable();
                 manufactureWidgets[i].DrawSelectable();
+            }
+
+            foreach (TimelineContainer container in timelineArtifactList)
+            {
+                container.TopLine.DrawSelectable();
+                container.BottomLine.DrawSelectable();
             }
 
             XNA.GraphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, leftBlackVertices, 0, 4, quadBlackIndices, 0, 2);
@@ -542,6 +678,7 @@ namespace BohemianArtifact
 
         private void UpdateTopCurves()
         {
+            //UpdateTopLines();
             foreach (TimelineContainer container in timelineArtifactList)
             {
                 float topLeft, topRight, bottomLeft = 0, bottomRight = 0;
@@ -573,12 +710,17 @@ namespace BohemianArtifact
                 }
                 //bottomLeft = (useTimelineRange[R_RANGE] - useTimelineRange[L_RANGE]) * (container.Artifact.UseDate.StartYear - useMinYear) / (useMaxYear - useMinYear) + useTimelineRange[L_RANGE];
                 //bottomRight = bottomLeft + 0.005f;
-                container.TopCurve.Recompute(catalogLineHeight + lineThickness / 2, topLeft, topRight, useLineHeight, bottomLeft, bottomRight);
+                container.TopCurve.Recompute(catalogLineHeight + lineThickness / 2, topLeft, topRight, useLineHeight - lineThickness / 2, bottomLeft, bottomRight);
+                container.TopLine.LinePoints[0].Position.X = topLeft;
+                container.TopLine.LinePoints[1].Position.X = bottomLeft;
+                container.TopLine.Recompute();
+                container.Circle.Position = new Vector3(topLeft, catalogLineHeight - lineThickness / 2, 0);
             }
         }
         
         private void UpdateBottomCurves()
         {
+            //UpdateBottomLines();
             foreach (TimelineContainer container in timelineArtifactList)
             {
                 float topLeft = 0, topRight = 0, bottomLeft = 0, bottomRight = 0;
@@ -633,7 +775,10 @@ namespace BohemianArtifact
                 //topRight = topLeft + 0.005f;
                 //bottomLeft = (manufactureTimelineRange[R_RANGE] - manufactureTimelineRange[L_RANGE]) * (container.Artifact.ManufactureDate.StartYear - manuMinYear) / (manuMaxYear - manuMinYear) + manufactureTimelineRange[L_RANGE];
                 //bottomRight = bottomLeft + 0.005f;
-                container.BottomCurve.Recompute(useLineHeight, topLeft, topRight, manufactureLineHeight - lineThickness / 2, bottomLeft, bottomRight);
+                container.BottomCurve.Recompute(useLineHeight + lineThickness / 2, topLeft, topRight, manufactureLineHeight - lineThickness / 2, bottomLeft, bottomRight);
+                container.BottomLine.LinePoints[0].Position.X = topLeft;
+                container.BottomLine.LinePoints[1].Position.X = bottomLeft;
+                container.BottomLine.Recompute();
             }
         }
 
@@ -641,63 +786,16 @@ namespace BohemianArtifact
         {
             animationTimer.Update(time.TotalGameTime.TotalSeconds);
 
-            bool widgetTouch = false;
-            foreach (SelectableLine line in catalogWidgets)
+            if (bookshelf.TouchPoints.ContainsKey(widgetTouchId) == true)
             {
-                if (line.TouchId != Touch.NO_ID)
-                {
-                    timelineTouchId = line.TouchId;
-                    widgetTouch = true;
-                }
-            }
-            foreach (SelectableLine line in useWidgets)
-            {
-                if (line.TouchId != Touch.NO_ID)
-                {
-                    timelineTouchId = line.TouchId;
-                    widgetTouch = true;
-                }
-            }
-            foreach (SelectableLine line in manufactureWidgets)
-            {
-                if (line.TouchId != Touch.NO_ID)
-                {
-                    timelineTouchId = line.TouchId;
-                    widgetTouch = true;
-                }
-            }
-
-            Touch touch = null;
-            if (bookshelf.TouchPoints.ContainsKey(timelineTouchId) == true)
-            {
-                // if this touch currently exists, then set the touch variable so we can move the timelines around
-                touch = bookshelf.TouchPoints[timelineTouchId];
+                // if this touch currently exists, then move the timelines around
+                HandleTimelineWidgetTouch(bookshelf.TouchPoints[widgetTouchId]);
             }
             else
             {
-                // there is no current timeline touch
-                timelineTouchId = Touch.NO_ID;
-                // copy the current RANGE values of each timeline to the OFFSET values for use in the next iteration
-                catalogTimelineRange[L_OFFSET] = catalogTimelineRange[L_RANGE];
-                catalogTimelineRange[R_OFFSET] = catalogTimelineRange[R_RANGE];
-                useTimelineRange[L_OFFSET] = useTimelineRange[L_RANGE];
-                useTimelineRange[R_OFFSET] = useTimelineRange[R_RANGE];
-                manufactureTimelineRange[L_OFFSET] = manufactureTimelineRange[L_RANGE];
-                manufactureTimelineRange[R_OFFSET] = manufactureTimelineRange[R_RANGE];
-                // get out of here
-                return;
-            }
-
-            if (touch == null || touch.OriginObject == null)
-            {
-                // if the touch doesn't exist or the origin object isn't set, then get out of there
-                return;
-            }
-
-            // if the widgets are being touched, then handle it in this function
-            if (widgetTouch == true)
-            {
-                HandleTimelineWidgetTouch(touch);
+                // otherwise there is no current widget touch
+                widgetTouchId = Touch.NO_ID;
+                UpdateTimelineRanges();
             }
         }
 
@@ -937,6 +1035,17 @@ namespace BohemianArtifact
             manufactureTickSkipScale = ComputeTickScale(manufactureTicks.Count / (manufactureTimelineRange[R_RANGE] - manufactureTimelineRange[L_RANGE]), 40, 80, 200);
         }
 
+        private void UpdateTimelineRanges()
+        {
+            // copy the current RANGE values of each timeline to the OFFSET values for use in the next iteration
+            catalogTimelineRange[L_OFFSET] = catalogTimelineRange[L_RANGE];
+            catalogTimelineRange[R_OFFSET] = catalogTimelineRange[R_RANGE];
+            useTimelineRange[L_OFFSET] = useTimelineRange[L_RANGE];
+            useTimelineRange[R_OFFSET] = useTimelineRange[R_RANGE];
+            manufactureTimelineRange[L_OFFSET] = manufactureTimelineRange[L_RANGE];
+            manufactureTimelineRange[R_OFFSET] = manufactureTimelineRange[R_RANGE];
+        }
+
         private float ComputeTickScale(float density, float t1, float t2, float t3)
         {
             float tickScale;
@@ -961,7 +1070,39 @@ namespace BohemianArtifact
 
         private void library_SelectedArtifactChanged(Artifact selectedArtifact)
         {
-            // change the central circle artifact and texture
+            TimelineContainer newContainer = null;
+            // change the selected artifact
+            foreach (TimelineContainer container in timelineArtifactList)
+            {
+                if (container.Artifact == selectedArtifact)
+                {
+                    newContainer = container;
+                    break;
+                }
+            }
+            if (newContainer == null)
+            {
+                return;
+            }
+
+            if (selectedContainer != null)
+            {
+                // deselect the current selected artifact
+                selectedContainer.Selected = false;
+                selectedContainer.TopCurve.Alpha = ALPHA_RELATED;
+                selectedContainer.BottomCurve.Alpha = ALPHA_RELATED;
+            }
+
+            // update the selected container
+            selectedContainer = newContainer;
+
+            // and change it's status to being selected
+            selectedContainer.Selected = true;
+            selectedContainer.TopCurve.Alpha = ALPHA_SELECTED;
+            selectedContainer.BottomCurve.Alpha = ALPHA_SELECTED;
+
+            // since something was just selected, nothing is highlighted
+            highlightedContainer = null;
         }
     }
 }

@@ -15,34 +15,46 @@ namespace BohemianArtifact
         private Vector3[][] intermediary;
         private VertexPositionColorTexture[] screenPoints;
         private VertexPositionColorTexture[] selectPoints;
+        private float[] cornerAlpha;
         private int[] indices;
 
+        public float Alpha
+        {
+            get
+            {
+                return (float)screenPoints[0].Color.A / 255;
+            }
+            set
+            {
+                SetAlpha(value);
+            }
+        }
         public float TopLeftAlpha
         {
             set
             {
-                screenPoints[0].Color.A = (byte)(value * 255);
+                cornerAlpha[0] = value;
             }
         }
         public float TopRightAlpha
         {
             set
             {
-                screenPoints[1].Color.A = (byte)(value * 255);
+                cornerAlpha[1] = value;
             }
         }
         public float BottomLeftAlpha
         {
             set
             {
-                screenPoints[3].Color.A = (byte)(value * 255);
+                cornerAlpha[3] = value;
             }
         }
         public float BottomRightAlpha
         {
             set
             {
-                screenPoints[2].Color.A = (byte)(value * 255);
+                cornerAlpha[2] = value;
             }
         }
 
@@ -53,6 +65,8 @@ namespace BohemianArtifact
             screenPoints = new VertexPositionColorTexture[subdivisions * 2];
             selectPoints = new VertexPositionColorTexture[subdivisions * 2];
             indices = new int[3 * subdivisions];
+
+            cornerAlpha = new float[4] { 1, 1, 1, 1 };
 
             // create left points array and initialize each vertex
             leftPoints = new VertexPositionColorTexture[GetNumPointsAfterIterations(6, iterations)];
@@ -66,12 +80,10 @@ namespace BohemianArtifact
                 intermediary[i] = new Vector3[GetNumPointsAfterIterations(6, i)];
             }
 
-            Color lightGray = new Color(0.5f, 0.5f, 0.5f, 0.2f);
-
-            screenPoints[0] = new VertexPositionColorTexture(Vector3.Zero, lightGray, Vector2.Zero);
-            screenPoints[1] = new VertexPositionColorTexture(Vector3.Zero, lightGray, Vector2.Zero);
-            screenPoints[2] = new VertexPositionColorTexture(Vector3.Zero, lightGray, Vector2.Zero);
-            screenPoints[3] = new VertexPositionColorTexture(Vector3.Zero, lightGray, Vector2.Zero);
+            screenPoints[0] = new VertexPositionColorTexture(Vector3.Zero, color, Vector2.Zero);
+            screenPoints[1] = new VertexPositionColorTexture(Vector3.Zero, color, Vector2.Zero);
+            screenPoints[2] = new VertexPositionColorTexture(Vector3.Zero, color, Vector2.Zero);
+            screenPoints[3] = new VertexPositionColorTexture(Vector3.Zero, color, Vector2.Zero);
 
             selectPoints[0] = new VertexPositionColorTexture(Vector3.Zero, color, Vector2.Zero);
             selectPoints[1] = new VertexPositionColorTexture(Vector3.Zero, color, Vector2.Zero);
@@ -134,6 +146,14 @@ namespace BohemianArtifact
             selectPoints[1].Position.X = topRight;
             selectPoints[2].Position.X = bottomRight;
             selectPoints[3].Position.X = bottomLeft;
+        }
+
+        private void SetAlpha(float alpha)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                screenPoints[i].Color.A = (byte)(alpha * cornerAlpha[i] * 255);
+            }
         }
 
         public void Draw()
