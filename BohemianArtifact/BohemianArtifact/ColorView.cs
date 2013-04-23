@@ -460,7 +460,7 @@ namespace BohemianArtifact
                 }
             }
 
-            void Circle_TouchReleased(object sender, TouchReleaseEventArgs e)
+            void Circle_TouchReleased(object sender, TouchArgs e)
             {
                 SelectableEllipse c = sender as SelectableEllipse;
 
