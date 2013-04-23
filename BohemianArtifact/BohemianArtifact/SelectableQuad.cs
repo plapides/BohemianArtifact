@@ -38,10 +38,25 @@ namespace BohemianArtifact
             get { return center; }
         }
 
+        public float Width
+        {
+            get { return Math.Abs(screenPoints[2].Position.X - screenPoints[0].Position.X); }
+        }
+
+        public float Height
+        {
+            get { return Math.Abs(screenPoints[2].Position.Y - screenPoints[0].Position.Y); }
+        }
+
         // returns x-coordinate of top of quad
         public float Top
         {
             get { return screenPoints[0].Position.X; }
+        }
+
+        public Vector3 this[int i]
+        {
+            get { return screenPoints[i].Position; }
         }
 
         protected SelectableQuad(Color color)
@@ -70,7 +85,7 @@ namespace BohemianArtifact
             screenPoints[1] = new VertexPositionColorTexture(p2, color, Vector2.UnitX);
             screenPoints[2] = new VertexPositionColorTexture(p3, color, Vector2.One);
             screenPoints[3] = new VertexPositionColorTexture(p4, color, Vector2.UnitY);
-            center = 0.5f * (p3 - p1);
+            center = 0.5f * (p3 + p1);
             Synchronize();
         }
 
