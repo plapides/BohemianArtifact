@@ -150,7 +150,7 @@ namespace BohemianArtifact
                 t.X = (float)Math.Cos(i * 2 * Math.PI / subdivisions) * 0.5f + 0.5f;
                 t.Y = (float)Math.Sin(i * 2 * Math.PI / subdivisions) * 0.5f + 0.5f;
                 screenPoints[i] = new VertexPositionColorTexture(p, color, t);
-                selectPoints[i] = screenPoints[i];
+                selectPoints[i] = new VertexPositionColorTexture(p, selectableColor, t);
 
                 // set the 3 indices starting at the current (i'th) point
                 indices[i * 3 + 0] = i;
@@ -161,7 +161,7 @@ namespace BohemianArtifact
             }
             // this is the centre of the circle
             screenPoints[subdivisions] = new VertexPositionColorTexture(Vector3.Zero, color, new Vector2(0.5f, 0.5f));
-            selectPoints[subdivisions] = screenPoints[subdivisions];
+            selectPoints[subdivisions] = new VertexPositionColorTexture(Vector3.Zero, selectableColor, new Vector2(0.5f, 0.5f));
 
             // now compute the edge points
             for (int i = 0; i < subdivisions + 1; i++)
