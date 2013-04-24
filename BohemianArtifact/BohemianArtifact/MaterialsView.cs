@@ -21,11 +21,22 @@ namespace BohemianArtifact
         public class MaterialContainer
         {
             public SelectableBlob Blob;
+            public Color Color;
             public float Proportion;
             public string Name;
             public float Angle;
+            public bool IsConstraint = false;
+            public bool IsClickable = true;
             public AnimationParameter StartKey;
             public AnimationParameter EndKey;
+            private SelectableText[] text;
+            public SelectableText Text
+            {
+                get
+                {
+                    return text[Artifact.CurrentLanguage];
+                }
+            }
 
             public override bool Equals(object obj)
             {
@@ -46,15 +57,6 @@ namespace BohemianArtifact
             public float MiddleRadius;
             public float CircleRadius;
         }
-
-        private List<ArrayList> materialTiers;
-        private List<string> materialConstraints;
-        private Tier[] tierBoundaries;
-        private const int MAX_TIERS = 5;
-
-        private Dictionary<string, Texture2D> materialTextures;
-        private Dictionary<string, Color> materialColors;
-        private Dictionary<string, SelectableText> materialTexts;
 
         private Vector3 position;
         private Vector3 size;
@@ -81,12 +83,22 @@ namespace BohemianArtifact
             }
         }
 
-        private SpriteFont font;
+        private List<MaterialContainer> materialList;
+        private List<string> materialConstraints;
+
+        private Dictionary<string, Texture2D> materialTextures;
+        private Dictionary<string, Color> materialColors;
+        private Dictionary<string, SelectableText> materialTexts;
+
+        private SelectableBlob borderCircle;
+        private const float BORDER_RADIUS = 0.35f;
+        private const float SHELL_RADIUS_THICKNESS = 0.2f;
+
         private SelectableText titleText;
         private BohemianArtifact bookshelf;
 
-        private SelectableEllipse borderCircle;
         private Vector3 center = new Vector3(0.5f, 0.5f, 0);
+        private Vector2 circleCentre = new Vector2(0.5f, 0.65f);
 
         private Timer animationTimer;
 
@@ -96,60 +108,35 @@ namespace BohemianArtifact
             bookshelf.Library.SelectedArtifactChanged += new ArtifactLibrary.SelectedArtifactHandler(library_SelectedArtifactChanged);
             this.position = position;
             this.size = size;
-            font = bookshelf.Content.Load<SpriteFont>("Arial");
 
-            titleText = new SelectableText(font, "Materials", new Vector3(0.4f, 0, 0), bookshelf.GlobalTextColor, Color.White);
+            titleText = new SelectableText(XNA.Font, "Materials", new Vector3(0.4f, 0, 0), bookshelf.GlobalTextColor, Color.White);
             titleText.InverseScale(0.8f, size.X, size.Y);
 
-            // create a list of tier boundaries
-            tierBoundaries = new Tier[MAX_TIERS];
-            tierBoundaries[0] = new Tier(0, 0.25f);
-            tierBoundaries[1] = new Tier(0.275f, 0.02f);
-            tierBoundaries[2] = new Tier(0.325f, 0.020f);
-            tierBoundaries[3] = new Tier(0.375f, 0.020f);
-            tierBoundaries[4] = new Tier(0.425f, 0.020f);
             // and a list of materials that were previously selected
             materialConstraints = new List<string>();
-            // and the list of tiers, including the center
-            materialTiers = new List<ArrayList>();
 
             // the border circle that encases the centre and separates the tiers
-            borderCircle = new SelectableEllipse(new Vector2(center.X, center.Y), tierBoundaries[0].CircleRadius, 0.01f, Color.White, Color.Gray, null);
+            borderCircle = new SelectableBlob(circleCentre, (float)Math.PI, BORDER_RADIUS * 0.01f, BORDER_RADIUS, 0, Color.Black, Color.Black, Color.Black, null);
 
             animationTimer = new Timer(0.5f);
             animationTimer.FinishEvent += new TimerFinished(AnimationTimerFinished);
 
-            materialColors = new Dictionary<string, Color>();
-            materialTextures = new Dictionary<string, Texture2D>();
-            LoadMaterialTextures();
             materialTexts = new Dictionary<string, SelectableText>();
             LoadMaterialTexts();
+            materialColors = new Dictionary<string, Color>();
+            LoadMaterialColors();
+//            materialTextures = new Dictionary<string, Texture2D>();
+//            LoadMaterialTextures();
 
+            materialList = new List<MaterialContainer>();
             CreateMaterialBlobs();
-            PackAllTiers();
+            ShellPack();
+            //PackAllTiers();
             animationTimer.Start();
         }
 
-        private void LoadMaterialTextures()
+        private void LoadMaterialColors()
         {
-
-            Dictionary<string, int> materialList = bookshelf.Library.GetMaterialsTally(new List<string>());
-
-            foreach (string material in materialList.Keys)
-            {
-                materialTextures.Add(material, null);
-                /* for now we will just use colors, no textures
-                try
-                {
-                    Texture2D texture = XNAHelper.LoadTexture(BohemianArtifact.TexturePath + "material\\" + material + ".jpg");
-                    materialTextures.Add(material, texture);
-                }
-                catch (Exception e)
-                {
-                    materialTextures.Add(material, null);
-                }
-                //*/
-            }
             materialColors.Add("ceramic", Color.Goldenrod);
             materialColors.Add("céramique", Color.Goldenrod);
 
@@ -190,13 +177,34 @@ namespace BohemianArtifact
             materialColors.Add("composite", Color.PapayaWhip);
         }
 
+        private void LoadMaterialTextures()
+        {
+            Dictionary<string, int> materialList = bookshelf.Library.GetMaterialsTally(new List<string>());
+
+            foreach (string material in materialList.Keys)
+            {
+                materialTextures.Add(material, null);
+                /* for now we will just use colors, no textures
+                try
+                {
+                    Texture2D texture = XNAHelper.LoadTexture(BohemianArtifact.TexturePath + "material\\" + material + ".jpg");
+                    materialTextures.Add(material, texture);
+                }
+                catch (Exception e)
+                {
+                    materialTextures.Add(material, null);
+                }
+                //*/
+            }
+        }
+
         private void LoadMaterialTexts()
         {
             Dictionary<string, int> materialList = bookshelf.Library.GetMaterialsTally(new List<string>());
 
             foreach (string material in materialList.Keys)
             {
-                SelectableText text = new SelectableText(font, material, new Vector3(0, 0, 0), Color.Black, Color.White);
+                SelectableText text = new SelectableText(XNA.Font, material, new Vector3(0, 0, 0), Color.Black, Color.White);
                 text.InverseScale(0.5f, size.X, size.Y);
                 materialTexts.Add(material, text);
             }
@@ -204,10 +212,6 @@ namespace BohemianArtifact
 
         private void CreateMaterialBlobs()
         {
-            ArrayList newMaterialTier = new ArrayList();
-            //materialTiers.Add(newMaterialTier);
-            materialTiers.Insert(0, newMaterialTier);
-
             Dictionary<string, int> materialTally = bookshelf.Library.GetMaterialsTally(materialConstraints);
             int maxTallyCount = 0;
             int totalTallyCount = 0;
@@ -232,13 +236,16 @@ namespace BohemianArtifact
             // create a circle for each material, and scale it's size based on maxTallyCount
             foreach (string materialName in materialTally.Keys)
             {
+                // sqrt(sqrt(tally)) / sum[i from 0 to n, sqrt(sqrt(i))] (see above)
+                // this is the "smoothing function" that we apply to the material tally
+                // some materials have only several occurences while others have hundreds
+                // this function puts the size of a materials on the same order of magnitude
                 float size = (float)(Math.Sqrt(Math.Sqrt((float)((int)materialTally[materialName]))) / smoothedTallyTotal);
                 float radius = 0.25f * size;
-                //float size = (float)((int)materialTally[materialName]) / (float)totalTallyCount;
-                //float radius = 0.04f * (float)Math.Sqrt(Math.Sqrt(size));
 
-                // create a new blob as a circle for the time being
                 MaterialContainer newContainer = new MaterialContainer();
+                /* we don't use textures, so skip this code
+                // create a new blob as a circle for the time being
                 if (materialTextures[materialName] == null)
                 {
                     //newContainer.Blob = new SelectableBlob(new Vector2(center.X, center.Y), 0, (Color)materialColors[materialName], null);
@@ -251,6 +258,11 @@ namespace BohemianArtifact
                     newContainer.Blob = new SelectableBlob(new Vector2(center.X, center.Y), 0, 0, 0, 10,
                         Color.White, Color.DarkGray, Color.DarkGray, (Texture2D)materialTextures[materialName]);
                 }
+                //*/
+
+                newContainer.Blob = new SelectableBlob(circleCentre, 0, radius, BORDER_RADIUS + radius, 0.0025f,
+                    (Color)materialColors[materialName], XNA.DarkenColor((Color)materialColors[materialName], 0.75f), XNA.DarkenColor((Color)materialColors[materialName], 0.5f), null);
+                
                 //^ set the edge thickness above
                 //newContainer.Blob.SetBorderColors(XNA.DarkenColor(newContainer.Blob.Color, 0.75f), XNA.DarkenColor(newContainer.Blob.Color, 0.25f));
                 newContainer.Blob.TouchReleased += new TouchReleaseEventHandler(Blob_TouchReleased);
@@ -259,79 +271,46 @@ namespace BohemianArtifact
                 newContainer.Angle = 0;
                 newContainer.StartKey = new AnimationParameter();
                 newContainer.EndKey = new AnimationParameter();
+
                 // add the blob to the selectable objects list
                 bookshelf.SelectableObjects.AddObject(newContainer.Blob);
                 //SelectableEllipse newBlob = new SelectableEllipse(Vector2.Zero, radius, 0, Color.Red, Color.Black, null);
-                newMaterialTier.Add(newContainer);
+                materialList.Add(newContainer);
             }
         }
 
-        private MaterialContainer FindMaterialContainerFromBlob(SelectableBlob blob, out int tier)
+        private void ShellPack()
         {
-            tier = 0;
-            foreach (ArrayList list in materialTiers)
+            // keep a running sum how much each blob is rotated so we can position the next blob next to it
+            float totalShellAngle = 0;
+            float totalCenterAngle = 0;
+            float totalShellProportions = 0;
+            float totalCenterProportions = 0;
+            int numShellBlobs = 0;
+            int numCenterBlobs = 0;
+            foreach (MaterialContainer container in materialList)
             {
-                int index;
-                if ((index = list.IndexOf(blob)) != -1) // change the arraylist into a hashtable to make the list searchable by the SelectableBlobs
+                if (container.IsConstraint == true)
                 {
-                    return (MaterialContainer)list[index];
-                }
-                tier++;
-            }
-            tier = -1;
-            return null;
-        }
-
-        // this is for the first tier, which is the center of the circle
-        private void CirclePack()
-        {
-            ArrayList tier = materialTiers[0];
-
-            for (int i = 0; i < tier.Count; i++)
-            {
-                float angle = (float)(2 * i * Math.PI / tier.Count);
-                float distance = 0.6f * tierBoundaries[0].CircleRadius;
-                //Vector3 newPosition = new Vector3(distance * (float)Math.Cos(angle) / 2, distance * (float)Math.Sin(angle) / 2, 0);
-                //newPosition += center;
-                //((MaterialContainer)tier[i]).Blob.CenterPosition = newPosition;
-                //((MaterialContainer)tier[i]).Blob.SpanAngle = 0;
-                //((MaterialContainer)tier[i]).Angle = angle;
-
-                ((MaterialContainer)tier[i]).StartKey.Angle = ((MaterialContainer)tier[i]).Angle;
-                ((MaterialContainer)tier[i]).StartKey.CircleRadius = ((MaterialContainer)tier[i]).Blob.CircleRadius;
-                ((MaterialContainer)tier[i]).StartKey.MiddleRadius = ((MaterialContainer)tier[i]).Blob.MiddleRadius;
-                if (((MaterialContainer)tier[i]).Blob.SpanAngle == 0)
-                {
-                    ((MaterialContainer)tier[i]).StartKey.SpanAngle = 0;
+                    totalCenterProportions += container.Proportion;
+                    numCenterBlobs++;
                 }
                 else
                 {
-                    ((MaterialContainer)tier[i]).StartKey.SpanAngle = ((MaterialContainer)tier[i]).Blob.SpanAngle;
+                    totalShellProportions += container.Proportion;
+                    numShellBlobs++;
                 }
-
-                ((MaterialContainer)tier[i]).EndKey.Angle = angle;
-                ((MaterialContainer)tier[i]).EndKey.CircleRadius = 0.25f * ((MaterialContainer)tier[i]).Proportion;
-                ((MaterialContainer)tier[i]).EndKey.MiddleRadius = distance;
-                ((MaterialContainer)tier[i]).EndKey.SpanAngle = 0;
-
-                // set the color to make sure that it isn't darkened
-                ((MaterialContainer)tier[i]).Blob.Color = (Color)materialColors[((MaterialContainer)tier[i]).Name];
             }
-        }
 
-        private void ShellPack(int tierId)
-        {
-            ArrayList tier = materialTiers[tierId];
-            // keep a running sum how much each blob is rotated so we can position the next blob next to it
-            float totalAngle = 0;
-
-            for (int i = 0; i < tier.Count; i++)
+            for (int i = 0; i < materialList.Count; i++)
             {
+
                 // copy the keyframe details of the blob to the StartKey
-                ((MaterialContainer)tier[i]).StartKey.Angle = ((MaterialContainer)tier[i]).Angle;
-                ((MaterialContainer)tier[i]).StartKey.CircleRadius = ((MaterialContainer)tier[i]).Blob.CircleRadius;
-                ((MaterialContainer)tier[i]).StartKey.MiddleRadius = ((MaterialContainer)tier[i]).Blob.MiddleRadius;
-                ((MaterialContainer)tier[i]).StartKey.SpanAngle = ((MaterialContainer)tier[i]).Blob.SpanAngle;
+                // we do this regardless of whether or not this container is a constraint material or not
+                ((MaterialContainer)materialList[i]).StartKey.Angle = ((MaterialContainer)materialList[i]).Angle;
+                ((MaterialContainer)materialList[i]).StartKey.CircleRadius = ((MaterialContainer)materialList[i]).Blob.CircleRadius;
+                ((MaterialContainer)materialList[i]).StartKey.MiddleRadius = ((MaterialContainer)materialList[i]).Blob.MiddleRadius;
+                ((MaterialContainer)materialList[i]).StartKey.SpanAngle = ((MaterialContainer)materialList[i]).Blob.SpanAngle;
 
                 //((MaterialContainer)tier[i]).Blob.CenterPosition = center;
                 //((MaterialContainer)tier[i]).Blob.CircleRadius = tierBoundaries[tierId].CircleRadius;
@@ -339,17 +318,85 @@ namespace BohemianArtifact
                 //((MaterialContainer)tier[i]).Blob.SpanAngle = angle * 0.95f;
                 //((MaterialContainer)tier[i]).Angle = angle / 2 + totalAngle;
 
-                // first we must compute the spanangle of the blob and what angle it sits at in the shell
-                float angle = (float)(((MaterialContainer)tier[i]).Proportion * 2 * Math.PI);
-
                 // and now setup the EndKey
-                ((MaterialContainer)tier[i]).EndKey.Angle = angle / 2 + totalAngle;
-                ((MaterialContainer)tier[i]).EndKey.CircleRadius = tierBoundaries[tierId].CircleRadius;
-                ((MaterialContainer)tier[i]).EndKey.MiddleRadius = tierBoundaries[tierId].MiddleRadius;
-                ((MaterialContainer)tier[i]).EndKey.SpanAngle = angle * 0.95f;
+                if (materialList[i].IsConstraint == true)
+                {
+                    // compute what angle it sits at in the center
+                    float angle = (float)(((MaterialContainer)materialList[i]).Proportion * Math.PI / totalCenterProportions);
 
-                // running sum of the blob angles
-                totalAngle += angle;
+                    // if this blob is a contraint, then put it in the centre
+                    ((MaterialContainer)materialList[i]).EndKey.Angle = angle / 2 + totalCenterAngle;
+                    ((MaterialContainer)materialList[i]).EndKey.CircleRadius = materialList[i].Proportion * 0.25f / (float)Math.Sqrt(totalCenterProportions);
+                    ((MaterialContainer)materialList[i]).EndKey.MiddleRadius = BORDER_RADIUS * 0.6f;
+                    ((MaterialContainer)materialList[i]).EndKey.SpanAngle = 0;
+
+                    totalCenterAngle += angle;
+                }
+                else
+                {
+                    // otherwise put it on the shell
+
+                    // compute the spanangle of the blob and what angle it sits at in the shell
+                    //float angle = (float)(((MaterialContainer)materialList[i]).Proportion * Math.PI / totalShellProportions);
+                    float angle = (float)(Math.PI / numShellBlobs);
+
+                    ((MaterialContainer)materialList[i]).EndKey.Angle = angle / 2 + totalShellAngle;
+                    ((MaterialContainer)materialList[i]).EndKey.CircleRadius = materialList[i].Proportion * SHELL_RADIUS_THICKNESS;
+                    ((MaterialContainer)materialList[i]).EndKey.MiddleRadius = materialList[i].Proportion * SHELL_RADIUS_THICKNESS + BORDER_RADIUS * 1.02f;
+                    ((MaterialContainer)materialList[i]).EndKey.SpanAngle = angle * 0.95f;
+
+                    // running sum of the blob angles
+                    totalShellAngle += angle;
+                }
+            }
+        }
+
+
+        private MaterialContainer FindMaterialContainerFromBlob(SelectableBlob blob)
+        {
+            foreach (MaterialContainer container in materialList)
+            {
+                if (container.Blob == blob)
+                {
+                    return container;
+                }
+            }
+            return null;
+        }
+
+        /*
+        // this is for the first tier, which is the center of the circle
+        private void CirclePack()
+        {
+            for (int i = 0; i < materialList.Count; i++)
+            {
+                float angle = (float)(2 * i * Math.PI / materialList.Count);
+                float distance = 0.6f * tierBoundaries[0].CircleRadius;
+                //Vector3 newPosition = new Vector3(distance * (float)Math.Cos(angle) / 2, distance * (float)Math.Sin(angle) / 2, 0);
+                //newPosition += center;
+                //((MaterialContainer)tier[i]).Blob.CenterPosition = newPosition;
+                //((MaterialContainer)tier[i]).Blob.SpanAngle = 0;
+                //((MaterialContainer)tier[i]).Angle = angle;
+
+                ((MaterialContainer)materialList[i]).StartKey.Angle = ((MaterialContainer)materialList[i]).Angle;
+                ((MaterialContainer)materialList[i]).StartKey.CircleRadius = ((MaterialContainer)materialList[i]).Blob.CircleRadius;
+                ((MaterialContainer)materialList[i]).StartKey.MiddleRadius = ((MaterialContainer)materialList[i]).Blob.MiddleRadius;
+                if (((MaterialContainer)materialList[i]).Blob.SpanAngle == 0)
+                {
+                    ((MaterialContainer)materialList[i]).StartKey.SpanAngle = 0;
+                }
+                else
+                {
+                    ((MaterialContainer)materialList[i]).StartKey.SpanAngle = ((MaterialContainer)materialList[i]).Blob.SpanAngle;
+                }
+
+                ((MaterialContainer)materialList[i]).EndKey.Angle = angle;
+                ((MaterialContainer)materialList[i]).EndKey.CircleRadius = 0.25f * ((MaterialContainer)materialList[i]).Proportion;
+                ((MaterialContainer)materialList[i]).EndKey.MiddleRadius = distance;
+                ((MaterialContainer)materialList[i]).EndKey.SpanAngle = 0;
+
+                // set the color to make sure that it isn't darkened
+                ((MaterialContainer)materialList[i]).Blob.Color = (Color)materialColors[((MaterialContainer)materialList[i]).Name];
             }
         }
 
@@ -361,6 +408,7 @@ namespace BohemianArtifact
                 ShellPack(i);
             }
         }
+        //*/
 
         public void Draw()
         {
@@ -371,40 +419,49 @@ namespace BohemianArtifact
             titleText.DrawFill();
             
             XNA.PushMatrix();
-            XNA.Translate(borderCircle.Position);
+            XNA.Translate(borderCircle.CenterPosition);
+            XNA.RotateZ((float)Math.PI / 2);
             borderCircle.DrawFillBorder(false);
             XNA.PopMatrix();
 
-            lock (materialTiers)
+            //*
+            lock (materialList)
             {
-                foreach (ArrayList list in materialTiers)
+                // first draw each blob
+                foreach (MaterialContainer container in materialList)
                 {
-                    // first draw each blob
-                    foreach (MaterialContainer container in list)
+                    XNA.PushMatrix();
+                    XNA.Translate(container.Blob.CenterPosition);
+                    XNA.RotateZ(container.Angle);
+                    container.Blob.DrawFillBorder(false);
+                    //container.Blob.DrawBorder();
+                    XNA.PopMatrix();
+                }
+                // then draw the text over top of it
+                foreach (MaterialContainer container in materialList)
+                {
+                    SelectableText text = (SelectableText)materialTexts[container.Name];
+                    // text for circle packing in the center
+                    XNA.PushMatrix();
+                    XNA.Translate(container.Blob.CenterPosition);
+                    XNA.RotateZ(container.Angle);
+                    XNA.Translate(container.Blob.MiddleRadius + container.Blob.CircleRadius, 0, 0);
+                    // rotate the material text to the correct angle
+                    if (container.IsConstraint == true)
                     {
-                        XNA.PushMatrix();
-                        XNA.Translate(container.Blob.CenterPosition);
-                        XNA.RotateZ(container.Angle);
-                        container.Blob.DrawFill(true);
-                        container.Blob.DrawBorder();
-                        XNA.PopMatrix();
-                    }
-                    // then draw the text over top of it
-                    foreach (MaterialContainer container in list)
-                    {
-                        SelectableText text = (SelectableText)materialTexts[container.Name];
-                        // text for circle packing in the center (vertically aligned)
-                        XNA.PushMatrix();
-                        XNA.Translate(-text.TextSize.X / 2, -text.TextSize.Y / 2, 0);
-                        XNA.Translate(container.Blob.CenterPosition);
-                        XNA.RotateZ(container.Angle);
-                        XNA.Translate(container.Blob.MiddleRadius, 0, 0);
                         XNA.RotateZ(-container.Angle);
-                        text.Draw();
-                        XNA.PopMatrix();
                     }
+                    else
+                    {
+                        XNA.RotateZ(-(float)Math.PI / 2);
+                    }
+                    //XNA.Translate(-text.TextSize.X / 2, -text.TextSize.Y / 2, 0); // this one translate to the centre of the text
+                    XNA.Translate(-text.TextSize.X / 2, 0, 0);
+                    text.Draw();
+                    XNA.PopMatrix();
                 }
             }
+            //*/
 
             XNA.PopMatrix();
         }
@@ -416,18 +473,15 @@ namespace BohemianArtifact
             XNA.Scale(size);
 
             // draw the blobs
-            lock (materialTiers)
+            lock (materialList)
             {
-                foreach (ArrayList list in materialTiers)
+                foreach (MaterialContainer container in materialList)
                 {
-                    foreach (MaterialContainer container in list)
-                    {
-                        XNA.PushMatrix();
-                        XNA.Translate(container.Blob.CenterPosition);
-                        XNA.RotateZ(container.Angle);
-                        container.Blob.DrawSelectable();
-                        XNA.PopMatrix();
-                    }
+                    XNA.PushMatrix();
+                    XNA.Translate(container.Blob.CenterPosition);
+                    XNA.RotateZ(container.Angle);
+                    container.Blob.DrawSelectable();
+                    XNA.PopMatrix();
                 }
             }
 
@@ -436,40 +490,36 @@ namespace BohemianArtifact
 
         private void AnimateAllBlobs()
         {
-            lock (materialTiers)
+            //*
+            lock (materialList)
             {
-                foreach (ArrayList tier in materialTiers)
+                for (int i = 0; i < materialList.Count; i++)
                 {
-                    for (int i = 0; i < tier.Count; i++)
-                    {
-                        float circleRadius = animationTimer.Elapsed * (((MaterialContainer)tier[i]).EndKey.CircleRadius - ((MaterialContainer)tier[i]).StartKey.CircleRadius) + ((MaterialContainer)tier[i]).StartKey.CircleRadius;
-                        float middleRadius = animationTimer.Elapsed * (((MaterialContainer)tier[i]).EndKey.MiddleRadius - ((MaterialContainer)tier[i]).StartKey.MiddleRadius) + ((MaterialContainer)tier[i]).StartKey.MiddleRadius;
-                        float spanAngle = animationTimer.Elapsed * (((MaterialContainer)tier[i]).EndKey.SpanAngle - ((MaterialContainer)tier[i]).StartKey.SpanAngle) + ((MaterialContainer)tier[i]).StartKey.SpanAngle;
-                        ((MaterialContainer)tier[i]).Blob.SetDimensions(spanAngle, circleRadius, middleRadius);
-                        ((MaterialContainer)tier[i]).Angle = animationTimer.Elapsed * (((MaterialContainer)tier[i]).EndKey.Angle - ((MaterialContainer)tier[i]).StartKey.Angle) + ((MaterialContainer)tier[i]).StartKey.Angle;
+                    float circleRadius = animationTimer.Elapsed * (((MaterialContainer)materialList[i]).EndKey.CircleRadius - ((MaterialContainer)materialList[i]).StartKey.CircleRadius) + ((MaterialContainer)materialList[i]).StartKey.CircleRadius;
+                    float middleRadius = animationTimer.Elapsed * (((MaterialContainer)materialList[i]).EndKey.MiddleRadius - ((MaterialContainer)materialList[i]).StartKey.MiddleRadius) + ((MaterialContainer)materialList[i]).StartKey.MiddleRadius;
+                    float spanAngle = animationTimer.Elapsed * (((MaterialContainer)materialList[i]).EndKey.SpanAngle - ((MaterialContainer)materialList[i]).StartKey.SpanAngle) + ((MaterialContainer)materialList[i]).StartKey.SpanAngle;
+                    ((MaterialContainer)materialList[i]).Blob.SetDimensions(spanAngle, circleRadius, middleRadius);
+                    ((MaterialContainer)materialList[i]).Angle = animationTimer.Elapsed * (((MaterialContainer)materialList[i]).EndKey.Angle - ((MaterialContainer)materialList[i]).StartKey.Angle) + ((MaterialContainer)materialList[i]).StartKey.Angle;
 
-                        //((MaterialContainer)tier[i]).Blob.CircleRadius = animationTimer.Elapsed * (((MaterialContainer)tier[i]).EndKey.CircleRadius - ((MaterialContainer)tier[i]).StartKey.CircleRadius) + ((MaterialContainer)tier[i]).StartKey.CircleRadius;
-                        //((MaterialContainer)tier[i]).Blob.MiddleRadius = animationTimer.Elapsed * (((MaterialContainer)tier[i]).EndKey.MiddleRadius - ((MaterialContainer)tier[i]).StartKey.MiddleRadius) + ((MaterialContainer)tier[i]).StartKey.MiddleRadius;
-                        //((MaterialContainer)tier[i]).Blob.SpanAngle = animationTimer.Elapsed * (((MaterialContainer)tier[i]).EndKey.SpanAngle - ((MaterialContainer)tier[i]).StartKey.SpanAngle) + ((MaterialContainer)tier[i]).StartKey.SpanAngle;
-                    }
+                    //((MaterialContainer)tier[i]).Blob.CircleRadius = animationTimer.Elapsed * (((MaterialContainer)tier[i]).EndKey.CircleRadius - ((MaterialContainer)tier[i]).StartKey.CircleRadius) + ((MaterialContainer)tier[i]).StartKey.CircleRadius;
+                    //((MaterialContainer)tier[i]).Blob.MiddleRadius = animationTimer.Elapsed * (((MaterialContainer)tier[i]).EndKey.MiddleRadius - ((MaterialContainer)tier[i]).StartKey.MiddleRadius) + ((MaterialContainer)tier[i]).StartKey.MiddleRadius;
+                    //((MaterialContainer)tier[i]).Blob.SpanAngle = animationTimer.Elapsed * (((MaterialContainer)tier[i]).EndKey.SpanAngle - ((MaterialContainer)tier[i]).StartKey.SpanAngle) + ((MaterialContainer)tier[i]).StartKey.SpanAngle;
                 }
             }
+            //*/
         }
 
         private void AnimationTimerFinished()
         {
-            lock (materialTiers)
+            lock (materialList)
             {
-                foreach (ArrayList tier in materialTiers)
+                for (int i = 0; i < materialList.Count; i++)
                 {
-                    for (int i = 0; i < tier.Count; i++)
-                    {
-                        ((MaterialContainer)tier[i]).Angle = ((MaterialContainer)tier[i]).EndKey.Angle;
-                        ((MaterialContainer)tier[i]).Blob.CircleRadius = ((MaterialContainer)tier[i]).EndKey.CircleRadius;
-                        ((MaterialContainer)tier[i]).Blob.MiddleRadius = ((MaterialContainer)tier[i]).EndKey.MiddleRadius;
-                        ((MaterialContainer)tier[i]).Blob.SpanAngle = ((MaterialContainer)tier[i]).EndKey.SpanAngle;
-                        //((MaterialContainer)tier[i]).Blob.Recompute();
-                    }
+                    ((MaterialContainer)materialList[i]).Angle = ((MaterialContainer)materialList[i]).EndKey.Angle;
+                    ((MaterialContainer)materialList[i]).Blob.CircleRadius = ((MaterialContainer)materialList[i]).EndKey.CircleRadius;
+                    ((MaterialContainer)materialList[i]).Blob.MiddleRadius = ((MaterialContainer)materialList[i]).EndKey.MiddleRadius;
+                    ((MaterialContainer)materialList[i]).Blob.SpanAngle = ((MaterialContainer)materialList[i]).EndKey.SpanAngle;
+                    //((MaterialContainer)tier[i]).Blob.Recompute();
                 }
             }
         }
@@ -487,19 +537,12 @@ namespace BohemianArtifact
                 return;
             }
             MaterialContainer foundContainer = null;
-            foreach (ArrayList list in materialTiers)
+            foreach (MaterialContainer container in materialList)
             {
-                foreach (MaterialContainer container in list)
+                if (container.Blob.TouchId != Touch.NO_ID)// && ((Touch)bookshelf.TouchPoints[blob.TouchId]).IsActive == false)
                 {
-                    if (container.Blob.TouchId != Touch.NO_ID)// && ((Touch)bookshelf.TouchPoints[blob.TouchId]).IsActive == false)
-                    {
-                        // very basic touch detection at this point, only on touch-down, not on touch-release
-                        foundContainer = container;
-                        break;
-                    }
-                }
-                if (foundContainer != null)
-                {
+                    // very basic touch detection at this point, only on touch-down, not on touch-release
+                    foundContainer = container;
                     break;
                 }
             }
@@ -515,35 +558,22 @@ namespace BohemianArtifact
         {
             if (bookshelf.TouchPoints.ContainsKey(e.TouchId) == false)
             {
-                lock (materialTiers)
+                //*
+                lock (materialList)
                 {
-                    int tierId;
-                    MaterialContainer selectedMaterial = FindMaterialContainerFromBlob((SelectableBlob)sender, out tierId);
-                    if (tierId == 0)
+                    MaterialContainer selectedContainer = FindMaterialContainerFromBlob((SelectableBlob)sender);
+                    if (selectedContainer == null)
                     {
-                        ArrayList list = materialTiers[tierId];
-                        for (int i = 0; i < list.Count; i++)
-                        {
-                            // darken all the non-selected material colors
-                            if (list[i] != selectedMaterial)
-                            {
-                                ((MaterialContainer)(list[i])).Blob.Color = XNA.DarkenColor(((MaterialContainer)(list[i])).Blob.Color, 0.5f); ;
-                            }
-                        }
-                        materialConstraints.Add(selectedMaterial.Name);
-                        CreateMaterialBlobs();
+                        return;
                     }
-                    else
-                    {
-                        for (int i = 0; i < tierId; i++)
-                        {
-                            materialConstraints.RemoveAt(materialConstraints.Count - 1);
-                            materialTiers.RemoveAt(0);
-                        }
-                    }
-                    PackAllTiers();
+
+                    selectedContainer.IsConstraint = true;
+                    materialConstraints.Add(selectedContainer.Name);
+                    
+                    ShellPack();
                     animationTimer.Start();
                 }
+                //*/
             }
         }
 
