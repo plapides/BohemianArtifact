@@ -50,6 +50,7 @@ namespace BohemianArtifact
         // the object manager for selections
         private SelectableObjectManager selectableObjects;
 
+        private LanguageView languageView;
         private MaterialsView materialView;
         private KeywordView keywordView;
         private TimelineView timelineView;
@@ -60,6 +61,10 @@ namespace BohemianArtifact
         private SpriteFont spriteFont;
 
         private Color globalTextColor;
+
+        public const int LANGUAGE_ENGLISH = 0;
+        public const int LANGUAGE_FRENCH = 1;
+        public static int CurrentLanguage = LANGUAGE_ENGLISH;
 
         private static string texturePath = "texture\\";
         public static string TexturePath
@@ -381,6 +386,11 @@ namespace BohemianArtifact
             // create the visualization objects
             // we are using the screen width for the x and y calculation, so the max y value is 9/16 (0.5625f)
             float viewPadding = 0.025f;
+
+            float languageSize = 0.04f;
+            float languageLeft = 0.002f;
+            float languageTop = 0.002f;
+
             float materialSize = 0.3f;
             float materialLeft = viewPadding;
             float materialTop = viewPadding;
@@ -401,6 +411,7 @@ namespace BohemianArtifact
 
 
             //float timelineTop = 1 - timelineSize * 0.3f - viewPadding;
+            languageView = new LanguageView(this, new Vector3(languageLeft * presentation.BackBufferWidth, languageTop * presentation.BackBufferWidth, 0), new Vector3(languageSize * presentation.BackBufferWidth, languageSize * presentation.BackBufferWidth, 1));
             materialView = new MaterialsView(this, new Vector3(materialLeft * presentation.BackBufferWidth, materialTop * presentation.BackBufferWidth, 0), new Vector3(materialSize * presentation.BackBufferWidth, materialSize * presentation.BackBufferWidth, 1));
             colorView = new ColorView(this, new Vector3(colorLeft * presentation.BackBufferWidth, colorTop * presentation.BackBufferWidth, 0), new Vector3(colorSize * presentation.BackBufferWidth, colorSize * presentation.BackBufferWidth, 1));
             keywordView = new KeywordView(this, new Vector3(keywordLeft * presentation.BackBufferWidth, keywordTop * presentation.BackBufferWidth, 0), new Vector3(keywordSize * presentation.BackBufferWidth, keywordSize * presentation.BackBufferWidth, 1));
@@ -502,6 +513,7 @@ namespace BohemianArtifact
 
         protected override void Update(GameTime gameTime)
         {
+            languageView.Update(gameTime);
             materialView.Update(gameTime);
             colorView.Update(gameTime);
             keywordView.Update(gameTime);
@@ -559,6 +571,7 @@ namespace BohemianArtifact
                 // turn texturing off, just in case
                 XNA.Texturing = false;
 
+                languageView.DrawSelectable();
                 materialView.DrawSelectable();
                 colorView.DrawSelectable();
                 keywordView.DrawSelectable();
@@ -583,6 +596,7 @@ namespace BohemianArtifact
             XNA.GraphicsDevice.BlendState = blendState;
             //XNA.GraphicsDevice.BlendState = BlendState.NonPremultiplied;
 
+            languageView.Draw();
             materialView.Draw();
             colorView.Draw();
             keywordView.Draw();
