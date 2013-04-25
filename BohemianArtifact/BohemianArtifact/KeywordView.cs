@@ -50,7 +50,6 @@ namespace BohemianArtifact
             }
         }
 
-        private SpriteFont font;
         private SelectableText titleText;
         private BohemianArtifact bookshelf;
 
@@ -77,9 +76,8 @@ namespace BohemianArtifact
             bookshelf.Library.SelectedArtifactChanged += new ArtifactLibrary.SelectedArtifactHandler(library_SelectedArtifactChanged);
             this.position = position;
             this.size = size;
-            font = bookshelf.Content.Load<SpriteFont>("Arial");
 
-            titleText = new SelectableText(font, "Keywords", new Vector3(0.4f, 0, 0), bookshelf.GlobalTextColor, Color.White);
+            titleText = new SelectableText(XNA.Font, "Keywords", new Vector3(0.4f, 0, 0), bookshelf.GlobalTextColor, Color.White);
             titleText.InverseScale(0.8f, size.X, size.Y);
 
             centerCircleRadius = 0.1f;

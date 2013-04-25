@@ -147,7 +147,6 @@ namespace BohemianArtifact
             bookshelf.Library.SelectedArtifactChanged += new ArtifactLibrary.SelectedArtifactHandler(library_SelectedArtifactChanged);
             this.position = position;
             this.size = size;
-            font = bookshelf.Content.Load<SpriteFont>("Arial");
             
             // create left and right white fadeouts
             leftWhiteVertices = new VertexPositionColor[6];
@@ -196,7 +195,7 @@ namespace BohemianArtifact
             quadBlackIndices[4] = 3;
             quadBlackIndices[5] = 0;
 
-            titleText = new SelectableText(font, "Timeline", new Vector3(0.4f, 0, 0), bookshelf.GlobalTextColor, Color.White);
+            titleText = new SelectableText(XNA.Font, "Timeline", new Vector3(0.4f, 0, 0), bookshelf.GlobalTextColor, Color.White);
             titleText.InverseScale(0.8f, size.X, size.Y);
 
             // arrays to hold tick marks for each timeline
