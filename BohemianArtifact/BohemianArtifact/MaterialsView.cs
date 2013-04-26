@@ -23,7 +23,7 @@ namespace BohemianArtifact
             public SelectableBlob Blob;
             public Color Color;
             public float Proportion;
-            public string Name;
+            public Material Material;
             public float Angle;
             public bool IsConstraint = false;
             public bool IsClickable = true;
@@ -37,6 +37,17 @@ namespace BohemianArtifact
                     return text[Artifact.CurrentLanguage];
                 }
             }
+            public SelectableText[] TextArray
+            {
+                get
+                {
+                    return text;
+                }
+                set
+                {
+                    text = value;
+                }
+            }
 
             public override bool Equals(object obj)
             {
@@ -46,16 +57,6 @@ namespace BohemianArtifact
             {
                 return base.GetHashCode();
             }
-        }
-        struct Tier
-        {
-            public Tier(float middleRadius, float circleRadius)
-            {
-                MiddleRadius = middleRadius;
-                CircleRadius = circleRadius;
-            }
-            public float MiddleRadius;
-            public float CircleRadius;
         }
 
         private Vector3 position;
@@ -84,11 +85,11 @@ namespace BohemianArtifact
         }
 
         private List<MaterialContainer> materialList;
-        private List<string> materialConstraints;
+        private List<Material> materialConstraints;
 
-        private Dictionary<string, Texture2D> materialTextures;
-        private Dictionary<string, Color> materialColors;
-        private Dictionary<string, SelectableText> materialTexts;
+        private Dictionary<Material, Texture2D> materialTextures;
+        private Dictionary<Material, Color> materialColors;
+        private Dictionary<Material, SelectableText[]> materialTexts;
 
         private SelectableBlob borderCircle;
         private const float BORDER_RADIUS = 0.35f;
@@ -112,21 +113,21 @@ namespace BohemianArtifact
             titleText = new SelectableText(XNA.Font, "Materials", new Vector3(0.4f, 0, 0), bookshelf.GlobalTextColor, Color.White);
             titleText.InverseScale(0.8f, size.X, size.Y);
 
-            // and a list of materials that were previously selected
-            materialConstraints = new List<string>();
-
             // the border circle that encases the centre and separates the tiers
             borderCircle = new SelectableBlob(circleCentre, (float)Math.PI, BORDER_RADIUS * 0.01f, BORDER_RADIUS, 0, Color.Black, Color.Black, Color.Black, null);
 
             animationTimer = new Timer(0.5f);
             animationTimer.FinishEvent += new TimerFinished(AnimationTimerFinished);
 
-            materialTexts = new Dictionary<string, SelectableText>();
-            LoadMaterialTexts();
-            materialColors = new Dictionary<string, Color>();
+            //materialTexts = new Dictionary<string, SelectableText>();
+            //LoadMaterialTexts();
+            //materialTextures = new Dictionary<string, Texture2D>();
+            //LoadMaterialTextures();
+            materialColors = new Dictionary<Material, Color>();
             LoadMaterialColors();
-//            materialTextures = new Dictionary<string, Texture2D>();
-//            LoadMaterialTextures();
+
+            // a list of materials that are selected
+            materialConstraints = new List<Material>();
 
             materialList = new List<MaterialContainer>();
             CreateMaterialBlobs();
@@ -137,46 +138,75 @@ namespace BohemianArtifact
 
         private void LoadMaterialColors()
         {
-            materialColors.Add("ceramic", Color.Goldenrod);
-            materialColors.Add("céramique", Color.Goldenrod);
+            materialColors.Add(new Material("ceramic", "céramique"), Color.Goldenrod);
 
-            materialColors.Add("synthetic", Color.LightPink);
-            materialColors.Add("synthétique", Color.LightPink);
+            materialColors.Add(new Material("synthetic", "synthétique"), Color.LightPink);
 
-            materialColors.Add("fluid", Color.LightBlue);
-            materialColors.Add("liquide", Color.LightBlue);
+            materialColors.Add(new Material("fluid", "liquide"), Color.LightBlue);
 
-            materialColors.Add("skin", Color.Beige);
-            materialColors.Add("peau", Color.Beige);
+            materialColors.Add(new Material("skin", "peau"), Color.Beige);
 
-            materialColors.Add("glass", Color.LightGray);
-            materialColors.Add("verre", Color.LightGray);
+            materialColors.Add(new Material("glass", "verre"), Color.LightGray);
 
-            materialColors.Add("stone", Color.Gray);
-            materialColors.Add("pierre", Color.Gray);
+            materialColors.Add(new Material("stone", "pierre"), Color.Gray);
 
-            materialColors.Add("plant", Color.ForestGreen);
-            materialColors.Add("plante", Color.ForestGreen);
+            materialColors.Add(new Material("plant", "plante"), Color.ForestGreen);
 
-            materialColors.Add("metal", Color.AliceBlue);
-            materialColors.Add("métal", Color.AliceBlue);
+            materialColors.Add(new Material("metal", "métal"), Color.AliceBlue);
 
-            materialColors.Add("wood", Color.BurlyWood);
-            materialColors.Add("bois", Color.BurlyWood);
+            materialColors.Add(new Material("wood", "bois"), Color.BurlyWood);
 
-            materialColors.Add("resin", Color.Tan);
-            materialColors.Add("résine", Color.Tan);
+            materialColors.Add(new Material("resin", "résine"), Color.Tan);
 
-            materialColors.Add("fibre", Color.Thistle);
+            materialColors.Add(new Material("fibre", "fibre"), Color.Thistle);
 
-            materialColors.Add("animal", Color.Turquoise);
+            materialColors.Add(new Material("animal", "animal"), Color.Turquoise);
 
-            materialColors.Add("paper", Color.PaleGoldenrod);
-            materialColors.Add("papier", Color.PaleGoldenrod);
+            materialColors.Add(new Material("paper", "papier"), Color.PaleGoldenrod);
 
-            materialColors.Add("composite", Color.PapayaWhip);
+            materialColors.Add(new Material("composite", "composite"), Color.PapayaWhip);
+
+            //    materialColors.Add("ceramic", Color.Goldenrod);
+            //    materialColors.Add("céramique", Color.Goldenrod);
+
+            //    materialColors.Add("synthetic", Color.LightPink);
+            //    materialColors.Add("synthétique", Color.LightPink);
+
+            //    materialColors.Add("fluid", Color.LightBlue);
+            //    materialColors.Add("liquide", Color.LightBlue);
+
+            //    materialColors.Add("skin", Color.Beige);
+            //    materialColors.Add("peau", Color.Beige);
+
+            //    materialColors.Add("glass", Color.LightGray);
+            //    materialColors.Add("verre", Color.LightGray);
+
+            //    materialColors.Add("stone", Color.Gray);
+            //    materialColors.Add("pierre", Color.Gray);
+
+            //    materialColors.Add("plant", Color.ForestGreen);
+            //    materialColors.Add("plante", Color.ForestGreen);
+
+            //    materialColors.Add("metal", Color.AliceBlue);
+            //    materialColors.Add("métal", Color.AliceBlue);
+
+            //    materialColors.Add("wood", Color.BurlyWood);
+            //    materialColors.Add("bois", Color.BurlyWood);
+
+            //    materialColors.Add("resin", Color.Tan);
+            //    materialColors.Add("résine", Color.Tan);
+
+            //    materialColors.Add("fibre", Color.Thistle);
+
+            //    materialColors.Add("animal", Color.Turquoise);
+
+            //    materialColors.Add("paper", Color.PaleGoldenrod);
+            //    materialColors.Add("papier", Color.PaleGoldenrod);
+
+            //    materialColors.Add("composite", Color.PapayaWhip);
         }
 
+        /*
         private void LoadMaterialTextures()
         {
             Dictionary<string, int> materialList = bookshelf.Library.GetMaterialsTally(new List<string>());
@@ -184,35 +214,37 @@ namespace BohemianArtifact
             foreach (string material in materialList.Keys)
             {
                 materialTextures.Add(material, null);
-                /* for now we will just use colors, no textures
-                try
-                {
-                    Texture2D texture = XNAHelper.LoadTexture(BohemianArtifact.TexturePath + "material\\" + material + ".jpg");
-                    materialTextures.Add(material, texture);
-                }
-                catch (Exception e)
-                {
-                    materialTextures.Add(material, null);
-                }
-                //*/
+                // for now we will just use colors, no textures
+                //try
+                //{
+                //    Texture2D texture = XNAHelper.LoadTexture(BohemianArtifact.TexturePath + "material\\" + material + ".jpg");
+                //    materialTextures.Add(material, texture);
+                //}
+                //catch (Exception e)
+                //{
+                //    materialTextures.Add(material, null);
+                //}
             }
         }
+        //*/
 
         private void LoadMaterialTexts()
         {
-            Dictionary<string, int> materialList = bookshelf.Library.GetMaterialsTally(new List<string>());
+            Dictionary<Material, int> materialList = bookshelf.Library.GetMaterialsTally(new List<Material>());
 
-            foreach (string material in materialList.Keys)
+            foreach (Material material in materialList.Keys)
             {
-                SelectableText text = new SelectableText(XNA.Font, material, new Vector3(0, 0, 0), Color.Black, Color.White);
-                text.InverseScale(0.5f, size.X, size.Y);
+                SelectableText[] text = new SelectableText[2] { new SelectableText(XNA.Font, material.PrimaryArray[Artifact.LANGUAGE_ENGLISH], new Vector3(0, 0, 0), Color.Black, Color.White), 
+                    new SelectableText(XNA.Font, material.PrimaryArray[Artifact.LANGUAGE_FRENCH], new Vector3(0, 0, 0), Color.Black, Color.White) };
+                text[Artifact.LANGUAGE_ENGLISH].InverseScale(0.5f, size.X, size.Y);
+                text[Artifact.LANGUAGE_FRENCH].InverseScale(0.5f, size.X, size.Y);
                 materialTexts.Add(material, text);
             }
         }
 
         private void CreateMaterialBlobs()
         {
-            Dictionary<string, int> materialTally = bookshelf.Library.GetMaterialsTally(materialConstraints);
+            Dictionary<Material, int> materialTally = bookshelf.Library.GetMaterialsTally(materialConstraints);
             int maxTallyCount = 0;
             int totalTallyCount = 0;
             
@@ -234,14 +266,14 @@ namespace BohemianArtifact
             }
 
             // create a circle for each material, and scale it's size based on maxTallyCount
-            foreach (string materialName in materialTally.Keys)
+            foreach (Material material in materialTally.Keys)
             {
                 // sqrt(sqrt(tally)) / sum[i from 0 to n, sqrt(sqrt(i))] (see above)
                 // this is the "smoothing function" that we apply to the material tally
                 // some materials have only several occurences while others have hundreds
                 // this function puts the size of a materials on the same order of magnitude
-                float size = (float)(Math.Sqrt(Math.Sqrt((float)((int)materialTally[materialName]))) / smoothedTallyTotal);
-                float radius = 0.25f * size;
+                float mSize = (float)(Math.Sqrt(Math.Sqrt((float)((int)materialTally[material]))) / smoothedTallyTotal);
+                float radius = 0.25f * mSize;
 
                 MaterialContainer newContainer = new MaterialContainer();
                 /* we don't use textures, so skip this code
@@ -261,16 +293,21 @@ namespace BohemianArtifact
                 //*/
 
                 newContainer.Blob = new SelectableBlob(circleCentre, 0, radius, BORDER_RADIUS + radius, 0.0025f,
-                    (Color)materialColors[materialName], XNA.DarkenColor((Color)materialColors[materialName], 0.75f), XNA.DarkenColor((Color)materialColors[materialName], 0.5f), null);
+                    (Color)materialColors[material], XNA.DarkenColor((Color)materialColors[material], 0.75f), XNA.DarkenColor((Color)materialColors[material], 0.5f), null);
                 
                 //^ set the edge thickness above
                 //newContainer.Blob.SetBorderColors(XNA.DarkenColor(newContainer.Blob.Color, 0.75f), XNA.DarkenColor(newContainer.Blob.Color, 0.25f));
                 newContainer.Blob.TouchReleased += new TouchReleaseEventHandler(Blob_TouchReleased);
-                newContainer.Name = materialName;
-                newContainer.Proportion = size;
+                newContainer.Proportion = mSize;
                 newContainer.Angle = 0;
                 newContainer.StartKey = new AnimationParameter();
                 newContainer.EndKey = new AnimationParameter();
+
+                newContainer.TextArray = new SelectableText[2] { new SelectableText(XNA.Font, material.PrimaryArray[Artifact.LANGUAGE_ENGLISH], new Vector3(0, 0, 0), Color.Black, Color.White), 
+                    new SelectableText(XNA.Font, material.PrimaryArray[Artifact.LANGUAGE_FRENCH], new Vector3(0, 0, 0), Color.Black, Color.White) };
+                newContainer.TextArray[Artifact.LANGUAGE_ENGLISH].InverseScale(0.5f, size.X, size.Y);
+                newContainer.TextArray[Artifact.LANGUAGE_FRENCH].InverseScale(0.5f, size.X, size.Y);
+
 
                 // add the blob to the selectable objects list
                 bookshelf.SelectableObjects.AddObject(newContainer.Blob);
@@ -440,7 +477,8 @@ namespace BohemianArtifact
                 // then draw the text over top of it
                 foreach (MaterialContainer container in materialList)
                 {
-                    SelectableText text = (SelectableText)materialTexts[container.Name];
+                    //SelectableText text = (SelectableText)materialTexts[container.Material];
+                    SelectableText text = container.Text;
                     // text for circle packing in the center
                     XNA.PushMatrix();
                     XNA.Translate(container.Blob.CenterPosition);
@@ -568,7 +606,7 @@ namespace BohemianArtifact
                     }
 
                     selectedContainer.IsConstraint = true;
-                    materialConstraints.Add(selectedContainer.Name);
+                    materialConstraints.Add(selectedContainer.Material);
                     
                     ShellPack();
                     animationTimer.Start();
