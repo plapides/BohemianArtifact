@@ -10,9 +10,6 @@ namespace BohemianArtifact
 {
     public class LanguageView : IViewBB
     {
-        public delegate void ChangeLanguageDelegate(int newLanguage);
-        private event ChangeLanguageDelegate changeLanguageEvent;
-
         private Vector3 position;
         private Vector3 size;
         public Vector3 Position
