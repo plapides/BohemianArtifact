@@ -10,6 +10,7 @@ namespace BohemianArtifact
         protected VertexPositionColorTexture[] selectPoints = new VertexPositionColorTexture[4];
         protected int[] indices = { 0, 1, 2, 0, 2, 3 };
         protected Vector3 center;
+        protected Texture2D baseTexture;
 
         public VertexPositionColorTexture[] Points
         {
@@ -54,9 +55,20 @@ namespace BohemianArtifact
             get { return screenPoints[0].Position.X; }
         }
 
+        public Vector3 TopLeft
+        {
+            get { return this[0]; }
+        }
+
         public Vector3 this[int i]
         {
             get { return screenPoints[i].Position; }
+        }
+
+        public Texture2D Texture
+        {
+            get { return baseTexture; }
+            set { baseTexture = value; }
         }
 
         protected SelectableQuad(Color color)
@@ -70,10 +82,14 @@ namespace BohemianArtifact
         public SelectableQuad(Vector2 position, Vector2 size, Color color)
             : base()
         {
-            screenPoints[0] = new VertexPositionColorTexture(new Vector3(position.X, position.Y, 0), color, Vector2.UnitX);
+            //screenPoints[0] = new VertexPositionColorTexture(new Vector3(position.X, position.Y, 0), color, Vector2.UnitX);
+            //screenPoints[1] = new VertexPositionColorTexture(new Vector3(position.X + size.X, position.Y, 0), color, Vector2.UnitX);
+            //screenPoints[2] = new VertexPositionColorTexture(new Vector3(position.X + size.X, position.Y + size.Y, 0), color, Vector2.UnitX);
+            //screenPoints[3] = new VertexPositionColorTexture(new Vector3(position.X, position.Y + size.Y, 0), color, Vector2.UnitX);
+            screenPoints[0] = new VertexPositionColorTexture(new Vector3(position.X, position.Y, 0), color, Vector2.Zero);
             screenPoints[1] = new VertexPositionColorTexture(new Vector3(position.X + size.X, position.Y, 0), color, Vector2.UnitX);
-            screenPoints[2] = new VertexPositionColorTexture(new Vector3(position.X + size.X, position.Y + size.Y, 0), color, Vector2.UnitX);
-            screenPoints[3] = new VertexPositionColorTexture(new Vector3(position.X, position.Y + size.Y, 0), color, Vector2.UnitX);
+            screenPoints[2] = new VertexPositionColorTexture(new Vector3(position.X + size.X, position.Y + size.Y, 0), color, Vector2.One);
+            screenPoints[3] = new VertexPositionColorTexture(new Vector3(position.X, position.Y + size.Y, 0), color, Vector2.UnitY);
             center = new Vector3(position.X + size.X / 2, position.Y + size.Y / 2, 0);
             Synchronize();
         }
@@ -123,6 +139,8 @@ namespace BohemianArtifact
 
         public void Draw(bool textureEnabled)
         {
+            if (textureEnabled && baseTexture != null)
+                XNA.Texture = baseTexture;
             XNA.Texturing = textureEnabled;
             graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, screenPoints, 0, 4, indices, 0, 2);
         }

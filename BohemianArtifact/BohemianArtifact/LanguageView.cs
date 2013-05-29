@@ -10,6 +10,9 @@ namespace BohemianArtifact
 {
     public class LanguageView : IViewBB
     {
+        public delegate void ChangeLanguageDelegate(int newLanguage);
+        private event ChangeLanguageDelegate changeLanguageEvent;
+
         private Vector3 position;
         private Vector3 size;
         public Vector3 Position
@@ -34,6 +37,7 @@ namespace BohemianArtifact
                 size = value;
             }
         }
+        
 
         private BohemianArtifact bookshelf;
 
@@ -41,8 +45,8 @@ namespace BohemianArtifact
 
         private SelectableEllipse englishCircle;
         private SelectableEllipse frenchCircle;
-        private float unselectedAlpha = 0.4f;
-        private float selectedAlpha = 0.6f;
+        private float unselectedAlpha = 0.3f;
+        private float selectedAlpha = 0.7f;
 
         public LanguageView(BohemianArtifact bbshelf, Vector3 position, Vector3 size)
         {
@@ -63,29 +67,40 @@ namespace BohemianArtifact
             frenchCircle.TouchActivated += new TouchActivatedEventHandler(Circle_TouchActivated);
             frenchCircle.TouchReleased += new TouchReleaseEventHandler(Circle_TouchReleased);
             bookshelf.SelectableObjects.AddObject(frenchCircle);
+
+            if (Artifact.CurrentLanguage == Artifact.LANGUAGE_ENGLISH)
+                englishCircle.Alpha = selectedAlpha;
+            else
+                frenchCircle.Alpha = selectedAlpha;
         }
 
         void Circle_TouchActivated(object sender, TouchArgs e)
         {
-            SelectableEllipse circle = sender as SelectableEllipse;
-            circle.Alpha = selectedAlpha;
+            //SelectableEllipse circle = sender as SelectableEllipse;
+            //circle.Alpha = selectedAlpha;
         }
 
         void Circle_TouchReleased(object sender, TouchArgs e)
         {
             SelectableEllipse circle = sender as SelectableEllipse;
-            circle.Alpha = unselectedAlpha;
+            //circle.Alpha = unselectedAlpha;
             if (bookshelf.TouchPoints.ContainsKey(e.TouchId) == false)
             {
-                if (sender == englishCircle)
+                if (sender == englishCircle && Artifact.CurrentLanguage == Artifact.LANGUAGE_FRENCH)
                 {
                     Artifact.CurrentLanguage = Artifact.LANGUAGE_ENGLISH;
                     Console.WriteLine("english selected");
+                    frenchCircle.Alpha = unselectedAlpha;
+                    englishCircle.Alpha = selectedAlpha;
+                    bookshelf.Library.fireLanguageChangedEvent(Artifact.CurrentLanguage);                    
                 }
-                else if (sender == frenchCircle)
+                else if (sender == frenchCircle && Artifact.CurrentLanguage == Artifact.LANGUAGE_ENGLISH)
                 {
                     Artifact.CurrentLanguage = Artifact.LANGUAGE_FRENCH;
                     Console.WriteLine("french selected");
+                    englishCircle.Alpha = unselectedAlpha;
+                    frenchCircle.Alpha = selectedAlpha;
+                    bookshelf.Library.fireLanguageChangedEvent(Artifact.CurrentLanguage);
                 }
             }
         }

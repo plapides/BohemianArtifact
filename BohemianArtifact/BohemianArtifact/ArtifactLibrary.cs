@@ -525,6 +525,15 @@ namespace BohemianArtifact
         public delegate void SelectedArtifactHandler(Artifact selectedArtifact);
         public event SelectedArtifactHandler SelectedArtifactChanged;
 
+        public delegate void ChangeLanguageHandler(int newLanguage);
+        public event ChangeLanguageHandler LanguageChanged;
+
+        public void fireLanguageChangedEvent(int newLanguage)
+        {
+            if (LanguageChanged != null)
+                LanguageChanged(newLanguage);
+        }
+
         private Artifact selectedArtifact;
         private List<Artifact> artifacts;
         public Artifact SelectedArtifact
@@ -572,10 +581,10 @@ namespace BohemianArtifact
             {
                 // this check is to load only those artifacts whose 512px images exist
                 //if (66 < numArtifactsLoaded)
-                if (152 < numArtifactsLoaded)
+                if (2 < numArtifactsLoaded)
 
                 {
-                    //break;
+                   // break;
                 }
 
                 if (child.Name == "Row")

@@ -6,7 +6,7 @@ using System.IO;
 
 namespace BohemianArtifact
 {
-    public class SelectableText : SelectableQuad
+    public class SelectableText : SelectableQuad, IDisposable
     {
         private static SpriteBatch spriteBatch;
 
@@ -88,6 +88,12 @@ namespace BohemianArtifact
         public static void Initialize()
         {
             spriteBatch = new SpriteBatch(graphicsDevice);
+        }
+
+        public void Dispose()
+        {
+            if (!fontTexture.IsDisposed)
+                fontTexture.Dispose();
         }
 
         public SelectableText(SpriteFont font, string t)

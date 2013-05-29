@@ -122,6 +122,12 @@ namespace BohemianArtifact
             effect.CurrentTechnique.Passes[0].Apply();
         }
 
+        public static void LoadIdentity()
+        {
+            effect.World = Matrix.Identity;
+            effect.CurrentTechnique.Passes[0].Apply();
+        }
+
         public static void Translate(float x, float y, float z)
         {
             Transform(Matrix.CreateTranslation(x, y, z));
