@@ -142,6 +142,7 @@ namespace BohemianArtifact
         }
 
         // ColorWheelLattice and ArtifactGrid will query this class to get points that are on the unit circle and converted to box coordinates
+        // if you want to rotate the whole color wheel in the color view, you can do it by changing the rotation variable below
         class CircleConverter
         {
             public SelectableQuad boundingQuad;
@@ -235,8 +236,10 @@ namespace BohemianArtifact
                             {
                                 float delta = (float)j / ringCount;
                                 // this node is some linear combination of the vertex created above and the next vertex on the hexagon, measured by 0 <= delta <= 1
-                                node = new ColorWheelLatticeNode(new Vector2((1 - delta) * pt.X + delta * nextpt.X, (1 - delta) * pt.Y + delta * nextpt.Y),
-                                    r, (1 - delta) * theta + delta * nexttheta, boundingQuad);
+                                //node = new ColorWheelLatticeNode(new Vector2((1 - delta) * pt.X + delta * nextpt.X, (1 - delta) * pt.Y + delta * nextpt.Y),
+                                //    r, (1 - delta) * theta + delta * nexttheta, boundingQuad); 
+                                pt = converter.getPointBox(r, (1 - delta) * theta + delta * nexttheta);
+                                node = new ColorWheelLatticeNode(pt, r, (1 - delta) * theta + delta * nexttheta, boundingQuad);
                                 if (circleInBounds(node.Circle, boundingQuad) && r <= 1)
                                     nodes.Add(node);
                                 else
@@ -281,7 +284,10 @@ namespace BohemianArtifact
                 //Console.WriteLine("Found count: " + foundCount);
 
                 foreach (ColorWheelLatticeNode n in nodes)
+                {
+                    //n.Radius = maxRadius;
                     n.finalizeRadius();
+                }
             }
 
             // only ever used for debugging, will not be attached to any ellipses for normal operation
