@@ -241,6 +241,10 @@ namespace BohemianArtifact
         private Color color;
         private SelectableText[] text;
 
+        private string function;
+        private string canadianSignificance;
+        private string techSignificance;
+
         public VagueDate CatalogDate
         {
             get
@@ -317,6 +321,20 @@ namespace BohemianArtifact
             {
                 return text[CurrentLanguage];
             }
+        }
+
+        public string Function
+        {
+            get { return function; }
+        }
+
+        public string CanadianSignificance
+        {
+            get { return canadianSignificance; }
+        }
+        public string TechSignificance
+        {
+            get { return techSignificance; }
         }
 
         public static void LoadStopwords()
@@ -425,6 +443,10 @@ namespace BohemianArtifact
             AddKeywordsStems(node.ChildNodes[8].InnerText);
             AddKeywordsStems(node.ChildNodes[9].InnerText);
             AddKeywordsStems(node.ChildNodes[10].InnerText);
+
+            function = node.ChildNodes[11].InnerText;
+            canadianSignificance = node.ChildNodes[12].InnerText;
+            techSignificance = node.ChildNodes[13].InnerText;
         }
 
         private string ExtractLanguage(int language, string input)

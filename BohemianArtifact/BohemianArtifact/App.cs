@@ -55,7 +55,8 @@ namespace BohemianArtifact
         private KeywordView keywordView;
         private TimelineView timelineView;
         private ColorView colorView;
-        
+        private DetailsView detailsView;
+
         // so that we can render fonts
         private SpriteBatch spriteBatch;
         private SpriteFont spriteFont;
@@ -409,6 +410,11 @@ namespace BohemianArtifact
             float timelineLeft = infoLeft + infoSize + viewPadding;
             float timelineTop = keywordTop + keywordSize + viewPadding;
 
+            float detailsWidth = 0.3f;
+            float detailsHeight = 0.2f;
+            float detailsLeft = viewPadding;
+            float detailsTop = keywordTop + keywordSize + viewPadding;
+
 
             //float timelineTop = 1 - timelineSize * 0.3f - viewPadding;
             languageView = new LanguageView(this, new Vector3(languageLeft * presentation.BackBufferWidth, languageTop * presentation.BackBufferWidth, 0), new Vector3(languageSize * presentation.BackBufferWidth, languageSize * presentation.BackBufferWidth, 1));
@@ -416,6 +422,7 @@ namespace BohemianArtifact
             colorView = new ColorView(this, new Vector3(colorLeft * presentation.BackBufferWidth, colorTop * presentation.BackBufferWidth, 0), new Vector3(colorSize * presentation.BackBufferWidth, colorSize * presentation.BackBufferWidth, 1));
             keywordView = new KeywordView(this, new Vector3(keywordLeft * presentation.BackBufferWidth, keywordTop * presentation.BackBufferWidth, 0), new Vector3(keywordSize * presentation.BackBufferWidth, keywordSize * presentation.BackBufferWidth, 1));
             timelineView = new TimelineView(this, new Vector3(timelineLeft * presentation.BackBufferWidth, timelineTop * presentation.BackBufferWidth, 0), new Vector3(timelineSize * presentation.BackBufferWidth, timelineSize * presentation.BackBufferWidth, 1));
+            detailsView = new DetailsView(this, new Vector3(detailsLeft * presentation.BackBufferWidth, detailsTop * presentation.BackBufferWidth, 0), new Vector3(detailsWidth * presentation.BackBufferWidth, detailsHeight * presentation.BackBufferWidth, 1));
             //timelineView = new TimelineView(this, new Vector3(400, 400, 0), new Vector3(1500, 1500, 1));
 
             // select a random artifact
@@ -518,22 +525,23 @@ namespace BohemianArtifact
             colorView.Update(gameTime);
             keywordView.Update(gameTime);
             timelineView.Update(gameTime);
+            detailsView.Update(gameTime);
 
             // the follow code can be deleted, it was used to test timers and blobs
-            timer.Update(gameTime.TotalGameTime.TotalSeconds);
-            if (timer.Running)
-            {
-                if (timer.Elapsed < 0.5f)
-                {
-                    blobTest2.MiddleRadius = 275 * timer.Elapsed * 2;
-                    blobTest2.CircleRadius = (25 - 80) * timer.Elapsed * 2 + 80;
-                }
-                else
-                {
-                    blobTest2.SpanAngle = (timer.Elapsed - 0.5f) * 2 * (float)Math.PI / 2;
-                }
-                blobTest2.Recompute();
-            }
+            //timer.Update(gameTime.TotalGameTime.TotalSeconds);
+            //if (timer.Running)
+            //{
+            //    if (timer.Elapsed < 0.5f)
+            //    {
+            //        blobTest2.MiddleRadius = 275 * timer.Elapsed * 2;
+            //        blobTest2.CircleRadius = (25 - 80) * timer.Elapsed * 2 + 80;
+            //    }
+            //    else
+            //    {
+            //        blobTest2.SpanAngle = (timer.Elapsed - 0.5f) * 2 * (float)Math.PI / 2;
+            //    }
+            //    blobTest2.Recompute();
+            //}
 
             base.Update(gameTime);
         }
@@ -574,8 +582,10 @@ namespace BohemianArtifact
                 languageView.DrawSelectable();
                 materialView.DrawSelectable();
                 colorView.DrawSelectable();
-                keywordView.DrawSelectable();
+                
                 timelineView.DrawSelectable();
+                detailsView.DrawSelectable();
+                keywordView.DrawSelectable();
 
                 XNA.PushMatrix();
                 XNA.Translate(blobTest2.CenterPosition);
@@ -599,9 +609,12 @@ namespace BohemianArtifact
             languageView.Draw();
             materialView.Draw();
             colorView.Draw();
-            keywordView.Draw();
-            timelineView.Draw();
 
+            timelineView.Draw();
+            detailsView.Draw();
+            keywordView.Draw();
+
+            
             //SelectableQuad qtest = new SelectableQuad(new Vector3(100, 100, 0), new Vector3(400, 100, 0), new Vector3(400, 800, 0), new Vector3(100, 800, 0), Color.Navy);
             //qtest.Draw(false);
 
