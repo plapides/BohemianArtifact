@@ -12,6 +12,8 @@ namespace BohemianArtifact
 {
     public class DetailsView : IViewBB
     {
+        #region Bounding Box classes
+
         class BoundingBox
         {
             SelectableLine top, left, right, bottom;
@@ -32,6 +34,106 @@ namespace BohemianArtifact
                 bottom.DrawThick();
             }
         }
+
+        class RoundedBoundingBox
+        {
+            SelectableLine top, left, right, bottom;
+            DetailsView view;
+            List<SelectableLine> corners;
+            Color color;
+            float thickness;
+
+            public RoundedBoundingBox(Vector3 topleft, Vector3 bottomright, Color c, float thickness, DetailsView view)
+            {
+                this.view = view;
+                color = c;
+                this.thickness = thickness;
+
+                float topRatio = view.Size.X / view.Size.Y;
+                float sideRatio = 1 / topRatio;
+                if (topRatio > 1) topRatio = 1;
+                if (sideRatio > 1) sideRatio = 1;
+
+                float percentBuffer = 0.05f; // how "rounded" the corner is
+                float topBuffer = percentBuffer * (bottomright.X - topleft.X) * topRatio;
+                float sideBuffer = percentBuffer * (bottomright.Y - topleft.Y) * sideRatio;
+                sideBuffer = topBuffer; // makes the corners look more natural
+
+                top = new SelectableLine(new Vector3(topleft.X, topleft.Y, 0), new Vector3(bottomright.X - topBuffer, topleft.Y, 0), c, thickness * topRatio);
+                left = new SelectableLine(new Vector3(topleft.X, topleft.Y, 0), new Vector3(topleft.X, bottomright.Y - sideBuffer, 0), c, thickness * sideRatio);
+                right = new SelectableLine(new Vector3(bottomright.X, topleft.Y + sideBuffer, 0), new Vector3(bottomright.X, bottomright.Y - sideBuffer, 0), c, thickness * sideRatio);
+                bottom = new SelectableLine(new Vector3(topleft.X + topBuffer, bottomright.Y, 0), new Vector3(bottomright.X - topBuffer, bottomright.Y, 0), c, thickness * topRatio);
+
+                corners = new List<SelectableLine>();
+
+                //corners.AddRange(makeRoundedCorner(top.LinePoints[0].Position, left.LinePoints[0].Position)); // top left
+                corners.AddRange(makeRoundedCorner(bottom.LinePoints[0].Position, left.LinePoints[1].Position, topRatio, sideRatio)); // bottom left
+                corners.AddRange(makeRoundedCorner(top.LinePoints[1].Position, right.LinePoints[0].Position, topRatio, sideRatio)); // top right
+                corners.AddRange(makeRoundedCorner(bottom.LinePoints[1].Position, right.LinePoints[1].Position, topRatio, sideRatio)); // bottom right
+            }
+
+            public static List<Vector3> chaikinRefine(List<Vector3> c)
+            {
+                if (c.Count < 4) return c;
+                int j = 1;
+                List<Vector3> r = new List<Vector3>(c.Count * 2 - 2);
+                r.Add(c[0]);
+                r.Add(.5f * (c[0] + c[1]));
+                for (; j < c.Count - 2; j++)
+                {
+                    r.Add(0.75f * c[j] + 0.25f * c[j + 1]);
+                    r.Add(0.25f * c[j] + 0.75f * c[j + 1]);
+                } // end for j
+                r.Add(.5f * (c[j] + c[j + 1]));
+                r.Add(c[j + 1]);
+                return r;
+            } // end refine
+
+            private List<SelectableLine> makeRoundedCorner(Vector3 horizLineEnd, Vector3 vertLineEnd, float topRatio, float sideRatio)
+            {
+                Vector3 corner = new Vector3(vertLineEnd.X, horizLineEnd.Y, 0);
+                List<Vector3> refinePts = new List<Vector3>();
+                refinePts.Add(horizLineEnd);
+                refinePts.Add(0.5f * horizLineEnd + 0.5f * corner);
+                refinePts.Add(0.5f * vertLineEnd + 0.5f * corner);
+                refinePts.Add(vertLineEnd);
+
+                for (int i = 0; i < 3; i++)
+                    refinePts = chaikinRefine(refinePts);
+
+                List<SelectableLine> lines = new List<SelectableLine>();
+                for (int i = 0; i < refinePts.Count - 1; i++)
+                {
+                    Vector3 left = refinePts[i], right = refinePts[i + 1];
+                    Vector3 vec = right - left; vec.Normalize();
+
+                    // would love to just make a bunch of same-thickness line segments out of refinePts, but can't if the box is non-square because the rendering will look bad
+                    // so you have to adjust the thickness based on how horizontal it is
+                    double angle = Math.Abs(Math.Acos(Vector3.Dot(vec, Math.Sign(vec.X) * Vector3.UnitX) / vec.Length())); // angle with the horizontal, in radians
+                    if (angle > Math.PI / 2)
+                        angle = Math.PI / 2;
+
+                    float percent = (float)(angle / (Math.PI / 2)); // 0 = 0%, and 90 deg = pi / 2 = 100%, a measure of "how horizontal it is"
+
+                    // "blend" the thickness line between the two ratios as you round the corner
+                    lines.Add(new SelectableLine(left, right, color, (topRatio + percent * (sideRatio - topRatio)) * thickness)); 
+                }
+                return lines;
+            }
+
+            public void Draw()
+            {
+                top.DrawThick();
+                left.DrawThick();
+                right.DrawThick();
+                bottom.DrawThick();
+
+                foreach (SelectableLine l in corners)
+                    l.DrawThick();
+            }
+        }
+
+        #endregion
 
         private Vector3 position;
         private Vector3 size;
@@ -68,12 +170,13 @@ namespace BohemianArtifact
         private SelectableQuad imageBox;
 
         private BoundingBox boundingBox;
+        private RoundedBoundingBox roundedBox;
 
         private FloatRange rotationRange;
 
-        // inline body refers to what occurs to the right of the picture, other body is what's left underneath
+        // inline body refers to what occurs to the right of the picture, lower body is what's left underneath
         private string headerText, subheaderText, inlineBodyText, lowerBodyText;
-        private string bodyText;
+        private string bodyText; // the whole thing before it gets divided up
         private float headerScale, subheaderScale, bodyScale;
         private float headerBigScale; // if header is too big to fit in a line with headerScale, this is an additional compression factor
         private float spacing = 0.02f;
@@ -104,6 +207,7 @@ namespace BohemianArtifact
             titleText.InverseScale(0.8f, size.X, size.Y);
 
             boundingBox = new BoundingBox(new Vector3(0, 0, 0), new Vector3(1, 1, 0), Color.Black, 0.005f);
+            roundedBox = new RoundedBoundingBox(new Vector3(0, 0, 0), new Vector3(1, 1, 0), new Color(200, 200, 200), 0.008f, this);
             float maxWidth = 0.5f; // as a percentage of the width of the details box
 
             maxImageBox = new SelectableQuad(new Vector2(0, 0), new Vector2(maxWidth, maxWidth * size.X / size.Y), Color.White);
@@ -289,12 +393,13 @@ namespace BohemianArtifact
 
             //titleText.DrawFill();
             //boundingBox.Draw();
+            roundedBox.Draw();
 
             //XNA.PushMatrix();
             //XNA.Translate(imageBox.Center);
             //XNA.RotateZ(rotationRange.Value);
             //XNA.Translate(-imageBox.Center);
-            for (int i = 0; i < 50; i++)
+            //for (int i = 0; i < 1; i++)
                 imageBox.Draw(true);
             //XNA.PopMatrix();
 
@@ -350,7 +455,7 @@ namespace BohemianArtifact
             subheaderText = wrapText(font, subheaderText, (1 - imageBox.Width - spacing) * size.X, subheaderScale, 4);
 
             // split the body text into two strings; one that goes to the side of the image, and the other that goes below
-            // one of these may be null, depending on how big the picture is and how long the string is
+            // one of these may be empty, depending on how big the picture is and how long the string is
             // we will draw the two chunks in two different spots, but it will look as if it just wraps around the picture
             divideBodyString();
 
@@ -469,6 +574,8 @@ namespace BohemianArtifact
             setImageLocation(selectedArtifact);
             imageBox.Texture = selectedArtifact.Texture;
 
+            // decide what gets put in the header, subheader, and body
+            // this is the only place you need to make changes if you want to alter what gets displayed in the box
             headerText = selectedArtifact.ArticleName;
             StringBuilder sb = new StringBuilder();
             //subheaderText = "Dates: " + selectedArtifact.CatalogDate.StartYear + ", " + selectedArtifact.ManufactureDate.StartYear + ", " + selectedArtifact.UseDate.StartYear + "\n";

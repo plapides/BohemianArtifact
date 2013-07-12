@@ -62,6 +62,16 @@ namespace BohemianArtifact
                 }
                 return delta * init + (1 - delta) * final;
             }
+
+            public static Vector2 interpolate(Vector2 init, Vector2 final, float delta)
+            {
+                return delta * init + (1 - delta) * final;
+            }
+
+            public static float interpolate(float init, float final, float delta)
+            {
+                return delta * init + (1 - delta) * final;
+            }
         }
 
         public class WavyText
@@ -83,6 +93,7 @@ namespace BohemianArtifact
 
             Vector2 lineStart, lineDirection, initialLineDirection;
             float lineAngle;
+            bool flipRotate;
             string text;
 
             double currentTheta;
@@ -117,6 +128,9 @@ namespace BohemianArtifact
             List<SelectableText> letters;
             List<Vector3> letterPositions; // have to save these separately since letters contains references to a master list
             List<Vector3> oldLetterPositions; // during bounce back, we have to save where the letters should be trying to end up
+            Vector2 lineDirectionOnRelease, oldLineDirection;
+            float lineAngleOnRelease, oldLineAngle;
+
             SelectableEllipse circle;
             Vector3 oldCirclePosition;
 
@@ -138,6 +152,8 @@ namespace BohemianArtifact
                 this.circle = circle;
 
                 lineAngle = (float)Math.Acos(lineDirection.X) * Math.Sign(lineDirection.Y);
+                flipRotate = lineAngle > Math.PI / 2 || lineAngle < -Math.PI / 2;
+
                 waveSpeed = 1f;
                 font = XNA.Font;
 
@@ -162,6 +178,11 @@ namespace BohemianArtifact
             }
 
             #region Getters and Setters (control how the wave operates)
+
+            public List<Vector3> LetterPositions
+            {
+                get { return letterPositions; }
+            }
 
             // how fast you want the text to progress along the wave (faster looks like the wind is blowing harder): a positive value where 1 is normal
             public float WaveSpeed
@@ -250,6 +271,9 @@ namespace BohemianArtifact
                         oldLetterPositions.Clear();
                         oldLetterPositions.AddRange(letterPositions);
                         oldCirclePosition = circle.Position;
+                        oldLineAngle = lineAngle;
+                        oldLineDirection = lineDirection;
+
                         totalStraightTime = 0;
                     }
                     else if (value == DisplayMode.BounceBack)
@@ -266,6 +290,12 @@ namespace BohemianArtifact
                         bounceBackRange.initialize();
 
                         // when bouncing back, we'll be interpolating between the straight line (ie, current positions) and the way the wavy text used to be (old positions)
+                        lineDirectionOnRelease = lineDirection;
+                        lineAngleOnRelease = lineAngle;
+                        // make sure the rotation during bounce back goes through the shortest path (0 deg to 359 deg should go backwards, not forwards through a full rotation which looks goofy)
+                        if (Math.Abs(lineAngleOnRelease - oldLineAngle) > Math.PI)
+                            lineAngleOnRelease -= (float)(Math.PI * 2);
+
                         bounceBackInterpolate = new InterpolatePosition(letterPositions, oldLetterPositions, circle.Position, oldCirclePosition);
                     }
 
@@ -434,8 +464,19 @@ namespace BohemianArtifact
                 for (int i = 0; i < letters.Count; i++)
                     letterPositions[i] = bounceBackInterpolate.interpolate(i, v);
 
-                circle.Position = bounceBackInterpolate.interpolate(-1, v);
+                lineDirection = InterpolatePosition.interpolate(lineDirectionOnRelease, oldLineDirection, v);
+                lineAngle = InterpolatePosition.interpolate(lineAngleOnRelease, oldLineAngle, v);
 
+                //if (letters.Count > 0)
+                //{
+                //    Vector2 end = new Vector2(letterPositions[0].X, letterPositions[0].Y);
+                //    lineDirection = end - lineStart;
+                //    lineDirection.Normalize();
+                //    lineAngle = (float)Math.Acos(lineDirection.X) * Math.Sign(lineDirection.Y);
+                //}
+
+                circle.Position = bounceBackInterpolate.interpolate(-1, v);
+                 
                 // needed to do one more call of this function to prevent a weird bug
                 // but once the letters get positioned one last time, can return to normal just fine
                 if (mode == DisplayMode.BounceBackFinished)
@@ -481,7 +522,6 @@ namespace BohemianArtifact
 
                     case DisplayMode.BounceBack:
                         bounceBackRange.performTimestep(deltaTime);
-                        //Console.WriteLine("range: " + bounceBackRange.Value);
                         break;
                 }
                 positionLetters();
@@ -506,6 +546,8 @@ namespace BohemianArtifact
                 {
                     XNA.PushMatrix();
                     XNA.Translate(letterPositions[i]);
+                    // comment below line if you want no text rotation
+                    XNA.RotateZ(lineAngle + (flipRotate ? (float)Math.PI : 0));
                     letters[i].DrawScale(drawScale);
                     XNA.PopMatrix();
                 }
@@ -655,10 +697,6 @@ namespace BohemianArtifact
 
             foreach (WavyText t in wavyText)
                 t.Draw();
-
-            //XNA.PushMatrix();
-            //XNA.GraphicsDevice.DrawUserPrimitives(PrimitiveType.LineStrip, wavelet, 0, 9);
-            //XNA.PopMatrix();
 
             XNA.PopMatrix();
         }
@@ -882,7 +920,7 @@ namespace BohemianArtifact
             for (i = 0; i < numArtifactCircles; i++)
             {
                 float angleDeg = (float)(i * 360f / numArtifactCircles);
-                angleDeg += 22.5f;
+                angleDeg += 22.5f; // add a tilt so it's more separated into quadrants
                 float angleRad = (float)(angleDeg * Math.PI / 180);
                 Vector2 direction = WavyText.rotateVector(Vector2.UnitX, angleRad);
                 direction.Normalize();

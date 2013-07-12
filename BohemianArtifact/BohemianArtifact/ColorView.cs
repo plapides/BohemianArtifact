@@ -20,6 +20,11 @@ namespace BohemianArtifact
                 Ellipse = se;
                 Artifact = a;
             }
+
+            public override string ToString()
+            {
+                return Artifact.ArticleName;
+            }
         }
 
         // couples an artifact and some information about its location and how far away it is from a centralized point
@@ -44,6 +49,11 @@ namespace BohemianArtifact
                 return 0; 
             }
 
+            public override string ToString()
+            {
+                return Artifact.ArticleName + " " + Distance;
+            }
+
         }
 
         // copules an artifact with information about how it's going to move and resize itself to a new position
@@ -51,12 +61,15 @@ namespace BohemianArtifact
         {
             ColorViewContainer movingArtifact;
             float initialRadius, finalRadius;
+            float initialThickness, finalThickness;
             Vector3 initialPosition, finalPosition;
             Vector3 positionVector;
             float totalTime;
 
+            float doNothingTime, doNothingTimeCounter;
+
             float radiusMovement, positionMovement;
-            bool radiusDone, positionDone;
+            bool radiusDone, positionDone, thicknessDone;
 
             public ArtifactMoving(ColorViewContainer artifact, float time, Vector3 finalPosition)
                 : this(artifact, time, finalPosition, artifact.Ellipse.Radius)
@@ -81,13 +94,49 @@ namespace BohemianArtifact
                 this.finalPosition = finalPosition;
                 positionVector = finalPosition - initialPosition;
 
+                initialThickness = finalThickness = artifact.Ellipse.EdgeThickness;
+
                 radiusMovement = positionMovement = 0;
                 radiusDone = positionDone = false;
+                thicknessDone = true;
+
+                doNothingTime = doNothingTimeCounter = 0;
+            }
+
+            public void setBorderThickness(float final)
+            {
+                finalThickness = final;
+                thicknessDone = false;
+            }
+
+            public float DoNothingTime
+            {
+                set { doNothingTime = value; }
             }
 
             // returns if it finished
             public bool performTimestep(double deltaTime)
             {
+                if (doNothingTime > 0 && doNothingTime > doNothingTimeCounter)
+                {
+                    doNothingTimeCounter += (float)deltaTime;
+                    return false;
+                }
+
+                if (!thicknessDone)
+                {
+                    float thicknessDelta = (finalThickness - initialThickness) * (float)(deltaTime / totalTime);
+
+                    float r = movingArtifact.Ellipse.EdgeThickness + thicknessDelta;
+                    if ((finalThickness > initialThickness && r >= finalThickness) || (finalThickness < initialThickness && r <= finalThickness))
+                    {
+                        thicknessDone = true;
+                        r = finalThickness;
+                    }
+
+                    movingArtifact.Ellipse.setEdgeThickness(r, radiusDone); // only recompute if we aren't going to set the radius below, no point doing it twice
+                }
+
                 if (!radiusDone)
                 {
                     float radiusDelta = (finalRadius - initialRadius) * (float)(deltaTime / totalTime);
@@ -118,7 +167,7 @@ namespace BohemianArtifact
                     }
                 }
 
-                return radiusDone && positionDone;
+                return radiusDone && positionDone && thicknessDone;
             }
 
             // get the distance (squared) of a point to a segment.
@@ -410,10 +459,19 @@ namespace BohemianArtifact
             static float NumSecondsToShrink = 1.2f; // how long you want it to take to shrink an artifact after it's been deselected
             static float ShrinkRadiusPerDelta = ActiveArtifactRadius / (NumSecondsToShrink * 60);
 
-            static float SubArtifactRadius = ActiveArtifactRadius * 0.7f;
-            static float SubWheelRadius = ActiveArtifactRadius + SubArtifactRadius; // get placed evenly on a circle of this radius, with center = 'location'
+            //static float SubArtifactRadius = ActiveArtifactRadius * 0.7f;
+            static float SubArtifactRadiusMin = ActiveArtifactRadius * 0.3f;
+            static float SubArtifactRadiusMax = ActiveArtifactRadius * 0.75f;
+            //static float SubWheelRadius = ActiveArtifactRadius + SubArtifactRadius; // get placed evenly on a circle of this radius, with center = 'location'
 
-            static float NumSecondsToMove = 0.4f; // how long you want it to take for circles to move during their animation
+            static float ActiveArtifactBorderWidth = 0.012f;
+            static float SubArtifactBorderWidth = 0.005f;
+            static float ShrinkBorderPerDelta = ActiveArtifactBorderWidth / (NumSecondsToShrink * 60);
+
+
+            static float NumSecondsToMove = 0.6f; // how long you want it to take for circles to move during their animation
+
+            int touchedCircleIndex = -1; // whether or not the user touched a ColorView circle to show a new artifact
 
             public ArtifactGrid(int dimension, SelectableQuad boundingQuad, List<Artifact> allArtifacts, ColorView colorView)
             {
@@ -455,7 +513,8 @@ namespace BohemianArtifact
                     colorView.Bookshelf.SelectableObjects.RemoveObject(c.Ellipse);
                 activeArtifacts.Clear();
                 foreach (ArtifactDistance a in closest)
-                    activeArtifacts.Add(new ColorViewContainer(new SelectableEllipse(a.Location, ActiveArtifactRadius, 0.02f, Color.White, Color.Black, a.Artifact.Texture), a.Artifact));
+                    activeArtifacts.Add(new ColorViewContainer(new SelectableEllipse(a.Location, ActiveArtifactRadius, ActiveArtifactBorderWidth, Color.White, 
+                        a.Artifact.Color, a.Artifact.Color, a.Artifact.Texture), a.Artifact));
 
             }
 
@@ -571,6 +630,8 @@ namespace BohemianArtifact
             {
                 int indexI, indexJ;
                 Vector2 location;
+                float theta;
+                ArtifactMoving am;
 
                 getGridIndices(a, out indexI, out indexJ, out location);
 
@@ -582,48 +643,192 @@ namespace BohemianArtifact
                     if (closest[i].Artifact == a)
                         index = i;
                 if (index >= 0)
-                    closest.RemoveAt(0);
+                    closest.RemoveAt(index);
 
-                // everything that was previously active is getting removed, so make them all shrink
-                shrinkingArtifacts.AddRange(activeArtifacts);
-
-                foreach (ColorViewContainer c in activeArtifacts)
-                    colorView.Bookshelf.SelectableObjects.RemoveObject(c.Ellipse);
-                activeArtifacts.Clear();
-
-                // the main artifact gets displayed where it's located
-                activeArtifacts.Add(new ColorViewContainer(new SelectableEllipse(location, ActiveArtifactRadius, 0.02f, Color.White, Color.Black, a.Texture), a));
-
-                // the other ones in "closest" get displayed in a circle around 'a'               
-                float theta;
-                for (int i = 0; i < closest.Count; i++)
+                // if they touched a color view outer circle, we have to do different types of animations
+                if (touchedCircleIndex != -1)
                 {
-                    theta = (float)(i * 2 * Math.PI / closest.Count);
-                    Vector3 center = new Vector3(SubWheelRadius * (float)Math.Cos(theta) + location.X, SubWheelRadius * (float)Math.Sin(theta) + location.Y, 0);
-                    // it starts in the same location as the parent circle, and moves to center
-                    SelectableEllipse ellipse = new SelectableEllipse(location, SubArtifactRadius, 0.02f, Color.White, Color.Black, closest[i].Artifact.Texture);
-                    ColorViewContainer container = new ColorViewContainer(ellipse, closest[i].Artifact);
+                    ColorViewContainer touchedCircle = activeArtifacts[touchedCircleIndex];
 
-                    activeArtifacts.Add(container);
-                    movingArtifacts.Add(new ArtifactMoving(container, NumSecondsToMove, center));
+                    movingArtifacts.Clear();
+                    ColorViewContainer[] newArtifacts = new ColorViewContainer[closest.Count + 1]; // +1 for the center one
+
+                    // the one they clicked is now the center
+                    newArtifacts[0] = touchedCircle;
+                    am = new ArtifactMoving(touchedCircle, NumSecondsToMove, new Vector3(location, 0), ActiveArtifactRadius);
+                    am.setBorderThickness(ActiveArtifactBorderWidth);
+                    movingArtifacts.Add(am);
+
+                    // the center one moves to replace the one they touched
+                    if (touchedCircleIndex >= newArtifacts.Length)
+                        touchedCircleIndex = newArtifacts.Length - 1; // sometimes, if you display fewer artifacts than before, this will be off the end
+                    newArtifacts[touchedCircleIndex] = activeArtifacts[0]; // 0 is always the center
+                    am = new ArtifactMoving(activeArtifacts[0], NumSecondsToMove, getLocationOnOuterRing(touchedCircleIndex, newArtifacts.Length, location),
+                        getSubArtifactRadius(touchedCircleIndex, newArtifacts.Length));
+                    am.setBorderThickness(SubArtifactBorderWidth);
+                    movingArtifacts.Add(am);
+
+                    // now we have to fill in the remaining spots in new artifacts
+                    // first, scan through currently active artifacts and, if they're sticking around, try to keep their position the same on the outer wheel
+                    List<ArtifactDistance> remaining = new List<ArtifactDistance>();
+                    foreach (ArtifactDistance ad in closest)
+                    {
+                        int indexInNewList = whereInArtifactList(ad.Artifact, newArtifacts);
+                        if (indexInNewList == -1) // if already in the new list, ignore it
+                        {
+                            int indexInOldList = whereInArtifactList(ad.Artifact, activeArtifacts);
+                            if (indexInOldList >= 0)
+                            {
+                                ColorViewContainer moving = activeArtifacts[indexInOldList];
+                                // we want it to be at same index, but it might be off the end if closest is smaller than before; shrink it until it isn't
+                                if (indexInOldList >= newArtifacts.Length)
+                                {
+                                    indexInOldList = newArtifacts.Length - 1;
+                                    while (indexInOldList >= 0 && newArtifacts[indexInOldList] != null)
+                                        indexInOldList--; // find first available spot
+                                }
+                                if (indexInOldList >= 0) // if it didn't get shoved off the back of the list (meaning all spots were full), go ahead and slot it in
+                                {
+                                    newArtifacts[indexInOldList] = moving;
+                                    movingArtifacts.Add(new ArtifactMoving(moving, NumSecondsToMove, getLocationOnOuterRing(indexInOldList, newArtifacts.Length, location),
+                                        getSubArtifactRadius(indexInOldList, newArtifacts.Length))); // do not need to adjust border thickness for these guys
+                                }
+                            }
+                            else
+                            {
+                                remaining.Add(ad); // deal with it in the next pass; it's a totally new artifact and will get put in the first available spot
+                            }
+                        }
+                    }
+
+                    int firstAvailIndex = 1; // starts at 1 because we know the center is taken
+                    while (firstAvailIndex < newArtifacts.Length && newArtifacts[firstAvailIndex] != null)
+                        firstAvailIndex++;
+
+                    // so now, all artifacts that were on the grid before (and still in closest) should be showing, and any empty space just gets filled up by what's left, in order
+                    foreach (ArtifactDistance ad in remaining)
+                    {
+                        // if we spend all our available slots, whatever's left in "remaining" will just not be shown
+                        if (firstAvailIndex < newArtifacts.Length)
+                        {
+                            // a reeeally small radius so it doesn't show in the transition until later when it grows
+                            SelectableEllipse ellipse = new SelectableEllipse(location, 0.00001f, SubArtifactBorderWidth, Color.White, ad.Artifact.Color, ad.Artifact.Color, ad.Artifact.Texture);
+                            ColorViewContainer container = new ColorViewContainer(ellipse, ad.Artifact);
+
+                            newArtifacts[firstAvailIndex] = container;
+                            // here is where it grows from small radius to its proper size
+                            ArtifactMoving moving = new ArtifactMoving(container, NumSecondsToMove, getLocationOnOuterRing(firstAvailIndex, newArtifacts.Length, location),
+                                getSubArtifactRadius(firstAvailIndex, newArtifacts.Length));
+                            moving.DoNothingTime = NumSecondsToMove; // don't show these until the others have finished moving, then they'll pop out all cool-like
+                            movingArtifacts.Add(moving);
+
+                        }
+                        // find the next available index
+                        while (firstAvailIndex < newArtifacts.Length && newArtifacts[firstAvailIndex] != null)
+                            firstAvailIndex++;
+                    }
+
+                    // hooray, everything should now be set up, just tidy up some loose ends
+                    foreach (ColorViewContainer c in activeArtifacts)
+                    {
+                        // some of these are going away forever, we just don't know which
+                        // so do it for all, then re-add all the active ones at the bottom of the function
+                        c.Ellipse.TouchReleased -= Ellipse_TouchReleased;
+                        colorView.Bookshelf.SelectableObjects.RemoveObject(c.Ellipse);
+                    }
+
+                    activeArtifacts.Clear();
+
+                    foreach (ColorViewContainer cv in newArtifacts)
+                        if (cv != null)
+                            activeArtifacts.Add(cv);
+
+                    // aid garbage collection?? (probably makes no difference...)
+                    newArtifacts = null;
+                    remaining.Clear();
                 }
 
-                foreach (ColorViewContainer c in activeArtifacts)
+                // else, the artifact is being displayed through a means other than clicking on a color wheel circle, so display it differently
+                else
                 {
+                    // everything that was previously active is getting removed, so make them all shrink
+                    shrinkingArtifacts.AddRange(activeArtifacts);
+
+                    foreach (ColorViewContainer c in activeArtifacts)
+                        colorView.Bookshelf.SelectableObjects.RemoveObject(c.Ellipse);
+                    activeArtifacts.Clear();
+
+                    // the main artifact gets displayed where it's located
+                    activeArtifacts.Add(new ColorViewContainer(new SelectableEllipse(location, ActiveArtifactRadius, ActiveArtifactBorderWidth, Color.White, a.Color, a.Color, a.Texture), a));
+
+                    // the other ones in "closest" get displayed in a circle around 'a'               
+                    for (int i = 0; i < closest.Count; i++)
+                    {
+                        //theta = (float)(i * 2 * Math.PI / closest.Count);
+                        //Vector3 center = new Vector3(SubWheelRadius * (float)Math.Cos(theta) + location.X, SubWheelRadius * (float)Math.Sin(theta) + location.Y, 0);
+                        Vector3 center = getLocationOnOuterRing(i + 1, closest.Count + 1, location);
+
+                        // it starts in the same location as the parent circle, and moves to center
+                        SelectableEllipse ellipse = new SelectableEllipse(location, getSubArtifactRadius(i + 1, closest.Count + 1), SubArtifactBorderWidth, Color.White,
+                            closest[i].Artifact.Color, closest[i].Artifact.Color, closest[i].Artifact.Texture);
+                        ColorViewContainer container = new ColorViewContainer(ellipse, closest[i].Artifact);
+
+                        activeArtifacts.Add(container);
+                        movingArtifacts.Add(new ArtifactMoving(container, NumSecondsToMove, center));
+                    }
+                }
+
+                // don't make the center one selectable, start at index 1
+                for (int i = 1; i < activeArtifacts.Count; i++)
+                {
+                    ColorViewContainer c = activeArtifacts[i];
                     c.Ellipse.TouchReleased += new TouchReleaseEventHandler(Ellipse_TouchReleased);
                     colorView.Bookshelf.SelectableObjects.AddObject(c.Ellipse);
                 }
+
+                touchedCircleIndex = -1; // we're done with this, turn it off for future interactions
+            }
+
+            public Vector3 getLocationOnOuterRing(int i, int numIncludingCenter, Vector2 center)
+            {
+                float theta = (float)((i - 1) * 2 * Math.PI / (numIncludingCenter - 1));
+                float radius = ActiveArtifactRadius + getSubArtifactRadius(i, numIncludingCenter);
+                return new Vector3(radius * (float)Math.Cos(theta) + center.X, radius * (float)Math.Sin(theta) + center.Y, 0);
+            }
+
+            public float getSubArtifactRadius(int i, int numIncludingCenter)
+            {
+                float delta = (float)(i - 1) / (numIncludingCenter - 1);
+                return delta * SubArtifactRadiusMin + (1 - delta) * SubArtifactRadiusMax;
+            }
+
+            public int whereInArtifactList(Artifact a, ColorViewContainer[] list)
+            {
+                for (int i = 0; i < list.Length; i++)
+                    if (list[i] != null && list[i].Artifact == a)
+                        return i;
+                return -1;
+            }
+
+            public int whereInArtifactList(Artifact a, List<ColorViewContainer> list)
+            {
+                for (int i = 0; i < list.Count; i++)
+                    if (list[i] != null && list[i].Artifact == a)
+                        return i;
+                return -1;
             }
 
             void Ellipse_TouchReleased(object sender, TouchArgs e)
             {
-                ColorViewContainer found = null;
-                for (int i = 0; i < activeArtifacts.Count && found == null; i++)
+                touchedCircleIndex = -1;
+                for (int i = 0; i < activeArtifacts.Count && touchedCircleIndex == -1; i++)
                     if (activeArtifacts[i].Ellipse == sender)
-                        found = activeArtifacts[i];
+                        touchedCircleIndex = i;
 
-                if (found != null)
-                    colorView.Bookshelf.Library.SelectedArtifact = found.Artifact;
+                if (touchedCircleIndex != -1)
+                {
+                    colorView.Bookshelf.Library.SelectedArtifact = activeArtifacts[touchedCircleIndex].Artifact;
+                }
             }
 
             // pass in the time between updates, hopefully it's 1/60th of a second most of the time
@@ -632,6 +837,10 @@ namespace BohemianArtifact
                 List<ColorViewContainer> newShrink = new List<ColorViewContainer>();
                 foreach (ColorViewContainer c in shrinkingArtifacts)
                 {
+                    float thickness = c.Ellipse.EdgeThickness - ShrinkBorderPerDelta * (float)(deltaTime * 60);
+                    if (thickness < 0)
+                        thickness = 0;
+                    c.Ellipse.setEdgeThickness(thickness, false); // don't recompute, we're doing it below with the radius setter
                     c.Ellipse.Radius -= ShrinkRadiusPerDelta * (float)(deltaTime * 60); // if deltaTime is 1/60th of a second, this will evaluate to * 1, otherwise it'll scale shrinkradius a bit
                     if (c.Ellipse.Radius > 0)
                         newShrink.Add(c); // still good!
@@ -691,7 +900,8 @@ namespace BohemianArtifact
                 {
                     XNA.PushMatrix();
                     XNA.Translate(c.Ellipse.Position);
-                    c.Ellipse.DrawFill(true);
+                    c.Ellipse.DrawFillBorder(true);
+                    //c.Ellipse.DrawFill(true);
                     XNA.PopMatrix();
                 }
 
@@ -701,7 +911,8 @@ namespace BohemianArtifact
                     ColorViewContainer c = activeArtifacts[i];
                     XNA.PushMatrix();
                     XNA.Translate(c.Ellipse.Position);
-                    c.Ellipse.DrawFill(true);
+                    //c.Ellipse.DrawFill(true);
+                    c.Ellipse.DrawFillBorder(true);
                     XNA.PopMatrix();
                 }
             }

@@ -49,6 +49,20 @@ namespace BohemianArtifact
             }
         }
 
+        public float EdgeThickness
+        {
+            get { return edgeThickness; }
+        }
+
+        // sets the edge thickness, and optionally recomputes
+        // you may want to postpone recomputing unnecessarily if you're also going to change the radius immediately
+        public void setEdgeThickness(float thickness, bool recompute)
+        {
+            edgeThickness = thickness;
+            if (recompute)
+                SetRadius(radius);
+        }
+
         public Color Color
         {
             get { return color; }

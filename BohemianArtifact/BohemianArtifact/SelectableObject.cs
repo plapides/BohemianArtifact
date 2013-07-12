@@ -105,6 +105,11 @@ namespace BohemianArtifact
             touchId = -1;
         }
 
+        public bool IsAssignedId
+        {
+            get { return objectId != 0; }
+        }
+
         public void SetObjectId(uint id)
         {
             objectId = id;
