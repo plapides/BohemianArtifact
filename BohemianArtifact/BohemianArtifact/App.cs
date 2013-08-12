@@ -316,9 +316,9 @@ namespace BohemianArtifact
         SelectableBlob blobTest1;
         SelectableBlob blobTest2;
         Timer timer;
+        float blob1Angle;
 
         SelectableQuad[] quads;
-
         protected override void LoadContent()
         {
             string filename = System.Windows.Forms.Application.ExecutablePath;
@@ -427,7 +427,7 @@ namespace BohemianArtifact
             FileStream file = new FileStream("texture\\material\\metal_2.jpg", FileMode.Open);
             Texture2D texture = Texture2D.FromStream(GraphicsDevice, file);
             file.Close();
-            blobTest1 = new SelectableBlob(new Vector2(1000, 500), (float)Math.PI / 4, 25, 300, 0, Color.RosyBrown, Color.Black, Color.Black, null);
+            blobTest1 = new SelectableBlob(new Vector2(100, 1000), new Vector2(300, 1200), -10, 20, 10, Color.LightGray, Color.LightGray, Color.White, ref blob1Angle);
             //blobTest2 = new SelectableBlob(new Vector2(1000, 500), 80, Color.White, texture);
             blobTest2 = new SelectableBlob(new Vector2(1000, 500), 0*(float)Math.PI / 4, 0, 0, 10, Color.Red, Color.Blue, Color.Green, texture);
             blobTest2.CircleRadius = 40;
@@ -571,11 +571,11 @@ namespace BohemianArtifact
                 // turn texturing off, just in case
                 XNA.Texturing = false;
 
+                timelineView.DrawSelectable();
                 languageView.DrawSelectable();
                 materialView.DrawSelectable();
                 colorView.DrawSelectable();
                 keywordView.DrawSelectable();
-                timelineView.DrawSelectable();
 
                 XNA.PushMatrix();
                 XNA.Translate(blobTest2.CenterPosition);
@@ -596,11 +596,11 @@ namespace BohemianArtifact
             XNA.GraphicsDevice.BlendState = blendState;
             //XNA.GraphicsDevice.BlendState = BlendState.NonPremultiplied;
 
+            timelineView.Draw();
             languageView.Draw();
             materialView.Draw();
             colorView.Draw();
             keywordView.Draw();
-            timelineView.Draw();
 
             //SelectableQuad qtest = new SelectableQuad(new Vector3(100, 100, 0), new Vector3(400, 100, 0), new Vector3(400, 800, 0), new Vector3(100, 800, 0), Color.Navy);
             //qtest.Draw(false);
@@ -618,8 +618,9 @@ namespace BohemianArtifact
             //textTest.Draw();
 
             XNA.PushMatrix();
-            XNA.Translate(blobTest2.CenterPosition);
-            //blobTest1.DrawFill(false);
+            XNA.Translate(blobTest1.CenterPosition);
+            XNA.RotateZ(blob1Angle);
+            blobTest1.DrawFillBorder(false);
             //blobTest2.DrawFill(false);
             //blobTest2.DrawBorder();
             XNA.PopMatrix();

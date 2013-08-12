@@ -155,6 +155,32 @@ namespace BohemianArtifact
         private int[] outerEdgeIndices;
         private int[] innerEdgeIndices;
 
+        public SelectableBlob(Vector2 start, Vector2 end, float curveDistance, float circleRadius, float edgeThickness, Color color, Color insideEdgeColor, Color outsideEdgeColor, ref float angle)
+        {
+            if (curveDistance < 0)
+            {
+                curveDistance *= -1;
+                Vector2 temp = end;
+                end = start;
+                start = temp;
+            }
+            Vector3 chord = new Vector3((end - start), 0);
+            float chordLength = chord.Length();
+            float midRadius = (chordLength * chordLength / 4 - curveDistance * curveDistance) / (2 * curveDistance);
+            float middleRadius = curveDistance + midRadius;
+            Vector3 chordMidPoint = new Vector3((end + start) / 2, 0);
+            Vector3 toCentre = Vector3.Cross(chord, Vector3.UnitZ);
+            toCentre.Normalize();
+            toCentre *= midRadius;
+            Vector3 centre = chordMidPoint + toCentre;
+            float spanAngle = 2 * (float)Math.Asin(chordLength / (2 * middleRadius));
+            // angle calculation
+            angle = (float)Math.Atan2(-toCentre.Y, -toCentre.X);
+
+
+            Initialize(new Vector2(centre.X, centre.Y), spanAngle, circleRadius, middleRadius, edgeThickness, color, insideEdgeColor, outsideEdgeColor, null);
+        }
+        
         public SelectableBlob(Vector2 centerPosition, float circleRadius, Color color, Texture2D texture)
         {
             Initialize(centerPosition, spanAngle, circleRadius, 0, 0, color, color, color, texture);

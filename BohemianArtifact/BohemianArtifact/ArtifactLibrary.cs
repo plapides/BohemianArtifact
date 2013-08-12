@@ -497,7 +497,11 @@ namespace BohemianArtifact
 
                 //Material material = new Material(pEnglish, pFrench, sEnglish, sFrench);
                 Material material = new Material(pEnglish, pFrench);
-                mMaterials.Add(material);
+                // ignore duplicates
+                if (mMaterials.Contains(material) == false)
+                {
+                    mMaterials.Add(material);
+                }
             }
         }
 
@@ -584,7 +588,7 @@ namespace BohemianArtifact
             {
                 // this check is to load only those artifacts whose 512px images exist
                 //if (66 < numArtifactsLoaded)
-                if (10 < numArtifactsLoaded)
+                if (100 < numArtifactsLoaded)
                 {
                     break;
                 }
@@ -727,7 +731,7 @@ namespace BohemianArtifact
 
             foreach (Artifact a in artifacts)
             {
-                bool completeMatch = true;
+                bool hasConstraints = true;
                 // compare the materialConstraints list to the artifact's material list
                 // if this artifact doesn't have any materials that match the constraints, then don't bother counting it in the tally
                 foreach (Material constraint in materialConstraints)
@@ -736,27 +740,15 @@ namespace BohemianArtifact
                     {
                         continue;
                     }
-                    // check if this artifact has the constraint material
-                    bool partialMatch = false;
-                    foreach (Material m in a.Materials)
+
+                    if (a.Materials.Contains(constraint) == false)
                     {
-                        if (m == constraint)
-                        {
-                            // there is a match, no need to keep checking
-                            partialMatch = true;
-                            break;
-                        }
-                    }
-                    // if there was no a single partial match, then this artifact does NOT have any of the materials in the constraints list
-                    if (partialMatch == false)
-                    {
-                        // don't consider it
-                        completeMatch = false;
+                        hasConstraints = false;
                         break;
                     }
                 }
 
-                if (completeMatch == true)
+                if (hasConstraints == true)
                 {
                     // if there was a complete match, then add this artifact's materials to the tally
                     foreach (Material material in a.Materials)
@@ -776,7 +768,7 @@ namespace BohemianArtifact
             // remove the tally for each of the materials in the constraints
             foreach (Material m in materialConstraints)
             {
-                tally.Remove(m);
+                //tally.Remove(m);
             }
 
             return tally;
