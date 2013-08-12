@@ -54,7 +54,7 @@ namespace BohemianArtifact
                 if (topRatio > 1) topRatio = 1;
                 if (sideRatio > 1) sideRatio = 1;
 
-                float percentBuffer = 0.05f; // how "rounded" the corner is
+                float percentBuffer = 0.07f; // how "rounded" the corner is
                 float topBuffer = percentBuffer * (bottomright.X - topleft.X) * topRatio;
                 float sideBuffer = percentBuffer * (bottomright.Y - topleft.Y) * sideRatio;
                 sideBuffer = topBuffer; // makes the corners look more natural
@@ -131,6 +131,22 @@ namespace BohemianArtifact
                 foreach (SelectableLine l in corners)
                     l.DrawThick();
             }
+
+            public Color Color
+            {
+                get { return color; }
+                set
+                {
+                    color = value;
+                    top.Color = color;
+                    left.Color = color;
+                    right.Color = color;
+                    bottom.Color = color;
+
+                    foreach (SelectableLine l in corners)
+                        l.Color = color;
+                }
+            }
         }
 
         #endregion
@@ -187,7 +203,7 @@ namespace BohemianArtifact
 
         private Color headerColor = new Color(80, 80, 80);
         private Color subheaderColor = Color.DarkRed;
-        private Color bodyColor = new Color(40, 40, 100); //new Color(128, 128, 128);
+        private Color bodyColor = new Color(40, 40, 100);
 
 
         List<KeyValuePair<Artifact, int>> descLengthsList;
@@ -589,6 +605,10 @@ namespace BohemianArtifact
             bodyText = concatenateStrings(new string[] { selectedArtifact.Function, selectedArtifact.CanadianSignificance, selectedArtifact.TechSignificance }, false);
 
             formatAllText();
+
+            // comment this line out if you don't want the border to change color based on the artifact
+            roundedBox.Color = selectedArtifact.Color;
+            //bodyColor = selectedArtifact.Color;
         }
 
         void Library_LanguageChanged(int newLanguage)
