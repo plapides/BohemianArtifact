@@ -122,6 +122,8 @@
     <Compile Include="App.cs" />
     <Compile Include="ArtifactLibrary.cs" />
     <Compile Include="ColorView.cs" />
+    <Compile Include="DetailsView.cs" />
+    <Compile Include="FloatRange.cs" />
     <Compile Include="LanguageView.cs" />
     <Compile Include="SelectableCurve.cs" />
     <Compile Include="TimelineView.cs" />
