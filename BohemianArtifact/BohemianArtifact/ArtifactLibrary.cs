@@ -113,7 +113,7 @@ namespace BohemianArtifact
     public class Material
     {
         private string[] primary;
-        private string[] secondary;
+        //private string[] secondary;
         public string Primary
         {
             get
@@ -121,18 +121,29 @@ namespace BohemianArtifact
                 return primary[Artifact.CurrentLanguage];
             }
         }
-        public string Secondary
+        //public string Secondary
+        //{
+        //    get
+        //    {
+        //        return secondary[Artifact.CurrentLanguage];
+        //    }
+        //}
+        public string[] PrimaryArray
         {
             get
             {
-                return secondary[Artifact.CurrentLanguage];
+                return primary;
             }
         }
-        public Material(string pEnglish, string pFrench, string sEnglish, string sFrench)
+        public Material(string pEnglish, string pFrench)
         {
-            primary = new string[] { pEnglish, pFrench };
-            secondary = new string[] { sEnglish, sFrench };
+            primary = new string[2] { pEnglish, pFrench };
         }
+        //public Material(string pEnglish, string pFrench, string sEnglish, string sFrench)
+        //{
+        //    primary = new string[] { pEnglish, pFrench };
+        //    secondary = new string[] { sEnglish, sFrench };
+        //}
         public override bool Equals(object obj)
         {
             return (Primary == ((Material)obj).Primary);
@@ -506,8 +517,13 @@ namespace BohemianArtifact
                 sEnglish = StripPossible(sEnglish);
                 sFrench = StripPossible(sFrench);
 
-                Material material = new Material(pEnglish, pFrench, sEnglish, sFrench);
-                mMaterials.Add(material);
+                //Material material = new Material(pEnglish, pFrench, sEnglish, sFrench);
+                Material material = new Material(pEnglish, pFrench);
+                // ignore duplicates
+                if (mMaterials.Contains(material) == false)
+                {
+                    mMaterials.Add(material);
+                }
             }
         }
 
@@ -603,10 +619,9 @@ namespace BohemianArtifact
             {
                 // this check is to load only those artifacts whose 512px images exist
                 //if (66 < numArtifactsLoaded)
-                if (2 < numArtifactsLoaded)
-
+                if (10 < numArtifactsLoaded)
                 {
-                   // break;
+                    break;
                 }
 
                 if (child.Name == "Row")
@@ -680,10 +695,10 @@ namespace BohemianArtifact
             }
             //*/
 
-            Dictionary<string, int> materialsTally = GetMaterialsTally(new List<string>());
-            foreach (string s in materialsTally.Keys)
+            Dictionary<Material, int> materialsTally = GetMaterialsTally(new List<Material>());
+            foreach (Material m in materialsTally.Keys)
             {
-                //Console.WriteLine(s + ": " + materialsTally[s]);
+                Console.WriteLine(m.PrimaryArray[Artifact.LANGUAGE_ENGLISH] + " / " + m.PrimaryArray[Artifact.LANGUAGE_FRENCH] + ": " + materialsTally[m]);
             }
             //for (int i = 0; i < 10; i++)
             //{
@@ -741,59 +756,50 @@ namespace BohemianArtifact
             return stems;
         }
 
-        public Dictionary<string, int> GetMaterialsTally(List<string> materialConstraints)
+        public Dictionary<Material, int> GetMaterialsTally(List<Material> materialConstraints)
         {
-            Dictionary<string, int> tally = new Dictionary<string, int>();
+            Dictionary<Material, int> tally = new Dictionary<Material, int>();
 
             foreach (Artifact a in artifacts)
             {
-                // for each artifact, compare it's material list to the materialConstraints list
-                bool completeMatch = true;
-                foreach (string s in materialConstraints)
+                bool hasConstraints = true;
+                // compare the materialConstraints list to the artifact's material list
+                // if this artifact doesn't have any materials that match the constraints, then don't bother counting it in the tally
+                foreach (Material constraint in materialConstraints)
                 {
-                    if (s == "")
+                    if (constraint.Primary == "")
                     {
                         continue;
                     }
-                    // check if this artifact has the constraint material
-                    bool partialMatch = false;
-                    foreach (Material m in a.Materials)
+
+                    if (a.Materials.Contains(constraint) == false)
                     {
-                        if (m.Primary == s)
-                        {
-                            // there is a match, no need to keep checking
-                            partialMatch = true;
-                            break;
-                        }
-                    }
-                    // if there was NOT a partial match, then this artifact does NOT have all of the materials in the constraints list
-                    if (partialMatch == false)
-                    {
-                        completeMatch = false;
+                        hasConstraints = false;
                         break;
                     }
                 }
 
-                if (completeMatch == true)
+                if (hasConstraints == true)
                 {
                     // if there was a complete match, then add this artifact's materials to the tally
-                    foreach (Material m in a.Materials)
+                    foreach (Material material in a.Materials)
                     {
-                        if (tally.ContainsKey(m.Primary) == false)
+                        if (tally.ContainsKey(material) == false)
                         {
-                            tally.Add(m.Primary, 1);
+                            tally.Add(material, 1);
                         }
                         else
                         {
-                            tally[m.Primary] = (int)tally[m.Primary] + 1;
+                            tally[material] = (int)tally[material] + 1;
                         }
                     }
                 }
             }
 
-            foreach (string s in materialConstraints)
+            // remove the tally for each of the materials in the constraints
+            foreach (Material m in materialConstraints)
             {
-                tally.Remove(s);
+                //tally.Remove(m);
             }
 
             return tally;

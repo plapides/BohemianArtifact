@@ -116,11 +116,13 @@ namespace BohemianArtifact
             Form form = (Form)Form.FromHandle(Window.Handle);
             form.UseWaitCursor = false;
             form.Cursor = null;
-            form.ClientSize = new Size(width, height);
+            //form.ClientSize = new Size(width, height);
             form.WindowState = FormWindowState.Normal;
             form.FormBorderStyle = FormBorderStyle.None;
             form.Left = left;
             form.Top = top;
+            form.Width = width;
+            form.Height = height;
         }
     }
 }

@@ -38,10 +38,10 @@ namespace BohemianArtifact
             public SelectableText TickText;
             public float Year;
 
-            public TimelineYearTick(float year)
+            public TimelineYearTick(float year, Color color)
             {
                 Year = year;
-                TickText = new SelectableText(XNA.Font, year.ToString(), Vector3.Zero, Color.Gray);
+                TickText = new SelectableText(XNA.Font, year.ToString(), Vector3.Zero, color);
             }
         }
 
@@ -373,34 +373,79 @@ namespace BohemianArtifact
             catalogMaxYear = ((int)catalogMaxYear / 10 + 1) * 10; // round UP to the nearest 10
             for (int i = (int)catalogMinYear; i <= catalogMaxYear; i++)
             {
-                TimelineYearTick catalogTick = new TimelineYearTick(i);
+                Color color;
+                if (i % 10 == 0)
+                {
+                    color = Color.Black;
+                }
+                else if (i % 5 == 0)
+                {
+                    color = Color.DimGray;
+                }
+                else
+                {
+                    color = Color.DarkGray;
+                }
+                TimelineYearTick catalogTick = new TimelineYearTick(i, color);
                 catalogTick.TickText.InverseScale(0.35f, size.X, size.Y);
                 catalogTicks.Add(catalogTick);
             }
-            catalogTickSkipScale = ComputeTickScale(catalogTicks.Count, 40, 80, 200);
+            catalogTickSkipScale = ComputeTickScale(catalogTicks.Count, 1, 40, 80, 200);
 
             // initialize the use timeline ticks
             useMinYear = ((int)useMinYear / 10) * 10; // round down to the nearest 10
             useMaxYear = ((int)useMaxYear / 10 + 1) * 10; // round UP to the nearest 10
             for (int i = (int)useMinYear; i <= useMaxYear; i++)
             {
-                TimelineYearTick useTick = new TimelineYearTick(i);
+                // only handle multiples of 5 (ignore 1s)
+                if (i % 5 != 0)
+                {
+                    useTicks.Add(null);
+                    continue;
+                }
+
+                Color color;
+                if (i % 10 == 0)
+                {
+                    color = Color.Black;
+                }
+                else if (i % 5 == 0)
+                {
+                    color = Color.DimGray;
+                }
+                else
+                {
+                    color = Color.DarkGray;
+                }
+                TimelineYearTick useTick = new TimelineYearTick(i, color);
                 useTick.TickText.InverseScale(0.35f, size.X, size.Y);
                 useTicks.Add(useTick);
             }
-            useTickSkipScale = ComputeTickScale(useTicks.Count, 40, 80, 200);
+            useTickSkipScale = ComputeTickScale(useTicks.Count, 5, 40, 80, 200);
             
             // manufacture ticks
             manuMinYear = ((int)manuMinYear / 10) * 10; // round down to the nearest 10
             manuMaxYear = ((int)manuMaxYear / 10 + 1) * 10; // round UP to the nearest 10
-            for (int i = (int)manuMinYear; i <= manuMaxYear; i++)
+            for (int i = (int)manuMinYear; i <= manuMaxYear; i+=5)
             {
-                TimelineYearTick manuTick = new TimelineYearTick(i);
+                Color color;
+                if (i % 10 == 0)
+                {
+                    color = Color.Black;
+                }
+                else if (i % 5 == 0)
+                {
+                    color = Color.DimGray;
+                }
+                else
+                {
+                    color = Color.DarkGray;
+                }
+                TimelineYearTick manuTick = new TimelineYearTick(i, color);
                 manuTick.TickText.InverseScale(0.35f, size.X, size.Y);
-                //manuTick.TickText.Alpha = 0.1f;
                 manufactureTicks.Add(manuTick);
             }
-            manufactureTickSkipScale = ComputeTickScale(manufactureTicks.Count, 40, 80, 200);
+            manufactureTickSkipScale = ComputeTickScale(manufactureTicks.Count, 5, 40, 80, 200);
 
             UpdateTopCurves();
             UpdateBottomCurves();
@@ -589,8 +634,13 @@ namespace BohemianArtifact
 
             XNA.GraphicsDevice.BlendState = BlendState.AlphaBlend;
             // draw catalog timeline tick marks
-            for (int i = 0; i < catalogTicks.Count; i += (int)catalogTickSkipScale)
+            for (int i = 0; i < catalogTicks.Count; i++)
             {
+                if (i % (int)catalogTickSkipScale != 0)
+                {
+                    continue;
+                }
+
                 // get the X position by interpolating i / icks.count between L_RANGE and R_RANGE
                 float xPosition = i * (catalogTimelineRange[R_RANGE] - catalogTimelineRange[L_RANGE]) / catalogTicks.Count + catalogTimelineRange[L_RANGE];
                 if (xPosition < -0.05f || 1.05f < xPosition)
@@ -598,16 +648,24 @@ namespace BohemianArtifact
                     // don't draw ticks when they're not going to be seen
                     continue;
                 }
+
+                float scale = 1 - (float)(catalogTickSkipScale - (int)catalogTickSkipScale);
                 XNA.PushMatrix();
                 XNA.Translate(xPosition, catalogLine.LinePoints[0].Position.Y, 0);
                 XNA.RotateZ(-(float)Math.PI / 5);
+                XNA.Scale(scale, scale, scale);
                 catalogTicks[i].TickText.Draw();
                 XNA.PopMatrix();
             }
 
             // draw use timeline tick marks
-            for (int i = 0; i < useTicks.Count; i += (int)useTickSkipScale)
+            for (int i = 0; i < useTicks.Count; i++)
             {
+                if (i % (int)useTickSkipScale != 0 || useTicks[i] == null)
+                {
+                    continue;
+                }
+
                 // get the X position by interpolating i / icks.count between L_RANGE and R_RANGE
                 float xPosition = i * (useTimelineRange[R_RANGE] - useTimelineRange[L_RANGE]) / useTicks.Count + useTimelineRange[L_RANGE];
                 if (xPosition < -0.05f || 1.05f < xPosition)
@@ -615,9 +673,21 @@ namespace BohemianArtifact
                     // don't draw ticks when they're not going to be seen
                     continue;
                 }
+
+                float scale;
+                if (((int)useTicks[i].Year) % 10 == 0)
+                {
+                    scale = 1;
+                }
+                else
+                {
+                    scale = 1 - (float)(useTickSkipScale - (int)useTickSkipScale);
+                }
+                scale = (float)Math.Sqrt(scale);
                 XNA.PushMatrix();
                 XNA.Translate(xPosition, useLine.LinePoints[0].Position.Y, 0);
                 XNA.RotateZ(-(float)Math.PI / 5);
+                XNA.Scale(scale, scale, scale);
                 useTicks[i].TickText.Draw();
                 XNA.PopMatrix();
             }
@@ -625,7 +695,7 @@ namespace BohemianArtifact
             // draw manufacture timeline tick marks
             for (int i = 0; i < manufactureTicks.Count; i += (int)manufactureTickSkipScale)
             {
-                // get the X position by interpolating i / icks.count between L_RANGE and R_RANGE
+                // get the X position by interpolating i / ticks.count between L_RANGE and R_RANGE
                 float xPosition = i * (manufactureTimelineRange[R_RANGE] - manufactureTimelineRange[L_RANGE]) / manufactureTicks.Count + manufactureTimelineRange[L_RANGE];
                 if (xPosition < -0.05f || 1.05f < xPosition)
                 {
@@ -906,7 +976,8 @@ namespace BohemianArtifact
                 UpdateTopCurves();
             }
             // update tick scale
-            catalogTickSkipScale = ComputeTickScale(catalogTicks.Count / (catalogTimelineRange[R_RANGE] - catalogTimelineRange[L_RANGE]), 40, 80, 200);
+            catalogTickSkipScale = ComputeTickScale(catalogTicks.Count / (catalogTimelineRange[R_RANGE] - catalogTimelineRange[L_RANGE]), 1, 40, 80, 200);
+            //Console.WriteLine("C_Tick: " + catalogTickSkipScale + "\tC_R: " + catalogTimelineRange[R_RANGE] + "\tC_L: " + catalogTimelineRange[L_RANGE]);
 
             // use widgets
             L = useTimelineRange[L_RANGE];
@@ -970,7 +1041,8 @@ namespace BohemianArtifact
                 UpdateTopCurves();
                 UpdateBottomCurves();
             }
-            useTickSkipScale = ComputeTickScale(useTicks.Count / (useTimelineRange[R_RANGE] - useTimelineRange[L_RANGE]), 40, 80, 200);
+            useTickSkipScale = ComputeTickScale(useTicks.Count / (useTimelineRange[R_RANGE] - useTimelineRange[L_RANGE]), 5, 40, 80, 200);
+            //Console.WriteLine("Use_T: " + useTickSkipScale + "\tUse_R: " + useTimelineRange[R_RANGE] + "\tUse_L: " + useTimelineRange[L_RANGE]);
 
             // manufacture widgets
             L = manufactureTimelineRange[L_RANGE];
@@ -1031,7 +1103,7 @@ namespace BohemianArtifact
                 manufactureTimelineRange[R_RANGE] = _R;
                 UpdateBottomCurves();
             }
-            manufactureTickSkipScale = ComputeTickScale(manufactureTicks.Count / (manufactureTimelineRange[R_RANGE] - manufactureTimelineRange[L_RANGE]), 40, 80, 200);
+            manufactureTickSkipScale = ComputeTickScale(manufactureTicks.Count / (manufactureTimelineRange[R_RANGE] - manufactureTimelineRange[L_RANGE]), 5, 40, 80, 200);
         }
 
         private void UpdateTimelineRanges()
@@ -1045,7 +1117,7 @@ namespace BohemianArtifact
             manufactureTimelineRange[R_OFFSET] = manufactureTimelineRange[R_RANGE];
         }
 
-        private float ComputeTickScale(float density, float t1, float t2, float t3)
+        private float ComputeTickScale(float density, float spacing, float t1, float t2, float t3)
         {
             float tickScale;
             if (t3 < density)
@@ -1056,13 +1128,18 @@ namespace BohemianArtifact
             {
                 tickScale = 5 + (density - t2) / (t3 - t2);
             }
-            else if (t1 < density && density < t2)
+            else if (t1 < density)
             {
-                tickScale = 1 + density / t2;
+                tickScale = 1 + (density - t1) / (t2 - t1);
             }
             else
             {
                 tickScale = 1;
+            }
+
+            if (tickScale < spacing)
+            {
+                tickScale = spacing;
             }
             return tickScale;
         }
